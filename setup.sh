@@ -13,7 +13,8 @@ TOOL_REPO="pedrocatalao/github-cool-readme"
 REF="${COOL_README_REF:-v1}"   # the version of the action the workflow uses
 WORKFLOW=".github/workflows/cool-readme.yml"
 CONFIG="cool-readme.yml"
-OUT="stats"
+OUT="stats"        # where workflows from before the cards branch commit the cards
+BRANCH="cards"     # where the workflow publishes them now
 SECRET="CARDS_TOKEN"
 START="<!-- cool-readme:start -->"
 END="<!-- cool-readme:end -->"
@@ -55,7 +56,7 @@ report() { # report status text: green for done, yellow for skipped, red for wha
   local status
   status="$(printf '%-9s' "$1")"
   case "$1" in
-    ok | added | set | updated | created | stored | started | generated | pushed) status="$(paint 32 "$status")" ;;
+    ok | added | set | updated | created | stored | started | generated | pushed | removed) status="$(paint 32 "$status")" ;;
     skipped | kept | "dry run") status="$(paint 33 "$status")" ;;
     missing | failed | old | differs) status="$(paint 31 "$status")" ;;
   esac
@@ -472,9 +473,20 @@ fi
 # first run. Until the cards exist the README would show broken images, so on a new setup the
 # README is committed by itself once the first run has made them.
 section "README"
+# The workflow publishes the cards on their own branch; one kept from before commits them to stats/.
+ON_BRANCH=false
+grep -q "origin $BRANCH" "$WORKFLOW" && ON_BRANCH=true
+if $ON_BRANCH; then
+  BASE="https://raw.githubusercontent.com/$PROFILE/$BRANCH"
+  git fetch --quiet --depth 1 origin "$BRANCH:refs/remotes/origin/$BRANCH" 2>/dev/null || true
+  made() { git cat-file -e "refs/remotes/origin/$BRANCH:$1" 2>/dev/null; } # made file: on the branch?
+else
+  BASE="$OUT"
+  made() { [ -f "$OUT/$1" ]; }
+fi
 picture() { # picture card width alt
   printf '<picture>\n  <source media="(prefers-color-scheme: dark)" srcset="%s/%s-dark.svg">\n  <img src="%s/%s-light.svg" width="%s" alt="%s">\n</picture>\n' \
-    "$OUT" "$1" "$OUT" "$1" "$2" "$3"
+    "$BASE" "$1" "$BASE" "$1" "$2" "$3"
 }
 card_picture() { # card_picture card
   case "$1" in
@@ -499,7 +511,7 @@ block="$(mktemp)"
 } > "$block"
 if [ "$WIDE" = "$NARROW" ]; then size="$WIDE wide"; else size="$WIDE and $NARROW wide"; fi
 missing_cards=false # a card that's on but not made yet: the README waits for the first run
-for card in $S_CARDS; do [ -f "$OUT/$card-light.svg" ] || missing_cards=true; done
+for card in $S_CARDS; do made "$card-light.svg" || missing_cards=true; done
 
 HAD_README=false
 [ -f README.md ] && HAD_README=true
@@ -517,11 +529,16 @@ else
   where="at the end; move the marked block wherever you like"
 fi
 git add -N README.md # so a new README shows in the diff too
+# With the cards on their branch, the stats/ folder of before is no longer used once the README
+# points at the branch: it goes with the README change.
+OLD_STATS=false
+$ON_BRANCH && [ -n "$(git ls-files "$OUT")" ] && OLD_STATS=true
 README_LATER=false # true: the README change waits for the first run's cards
-if git diff --quiet README.md; then
+if git diff --quiet README.md && ! $OLD_STATS; then
   report ok "the cards $where"
 elif ! $missing_cards; then
-  report updated "the cards $where, $size"
+  git diff --quiet README.md || report updated "the cards $where, $size"
+  if $OLD_STATS; then git rm -r --quiet "$OUT"; report removed "$OUT/: the cards are on the $BRANCH branch now"; fi
 else
   README_LATER=true
   git --no-pager -c color.ui="$($COLOUR && echo always || echo never)" diff README.md > "$WORK/readme.diff"
@@ -529,6 +546,10 @@ else
   git reset --quiet README.md
   if $HAD_README; then git checkout --quiet -- README.md; else rm -f README.md; fi
   report updated "the cards $where, $size"
+  if $OLD_STATS; then
+    report removed "$OUT/: the cards will be on the $BRANCH branch"
+    printf '%s\n' "and $OUT/ is removed ($(git ls-files "$OUT" | wc -l | tr -d ' ') files)" >> "$WORK/readme.diff"
+  fi
   note "$(paint 2 'committed by itself once the first run has made the cards')"
 fi
 if grep -q 'github-readme-stats' README.md "$WORK/README.next" 2>/dev/null; then
@@ -576,6 +597,9 @@ for f in "$WORKFLOW:workflow" "$CONFIG:settings" "README.md:README"; do
 done
 parts="$(printf '%s' "$parts" | sed 's/\(.*\), /\1 and /')"
 if $NEW_SETUP; then msg="Add README cards: $parts"; else msg="Update README cards: $parts"; fi
+if ! git diff --cached --quiet -- "$OUT"; then
+  if [ -n "$parts" ]; then msg="$msg; the cards are on the $BRANCH branch now"; else msg="Remove $OUT/: the README cards are on the $BRANCH branch now"; fi
+fi
 commit_and_push "$msg" || true
 
 # ------------------------------------------------------------------ first run
@@ -620,14 +644,16 @@ else
   wait_with_timer "$pid" "generating the cards, usually 1-3 minutes" \
     || die "the workflow failed" "see: gh run view $run_id -R $PROFILE --log-failed"
   git pull --quiet
-  report generated "the cards, in $OUT/"
+  if $ON_BRANCH; then report generated "the cards, on the $BRANCH branch"; else report generated "the cards, in $OUT/"; fi
   if $README_LATER; then
     # Already agreed to above: the cards exist now, so the README can show them.
     cp "$WORK/README.next" README.md
     git add README.md
-    git commit --quiet -m "Show README cards"
+    later="Show README cards"
+    if $OLD_STATS; then git rm -r --quiet "$OUT"; later="Show README cards from the $BRANCH branch, remove $OUT/"; fi
+    git commit --quiet -m "$later"
     git push --quiet
-    report pushed "Show README cards"
+    report pushed "$later"
   fi
 fi
 

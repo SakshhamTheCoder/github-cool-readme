@@ -18,11 +18,20 @@ jobs:
       - uses: pedrocatalao/github-cool-readme@v1
         with:
           token: ${{ secrets.CARDS_TOKEN }}
-      - name: Commit changed cards
+          output: ${{ runner.temp }}/cards
+      # The cards live on their own branch, as a single commit replaced on each change, so they
+      # don't add to the history of your main branch.
+      - name: Publish the cards on the cards branch
         run: |
-          git add stats
-          if git diff --cached --quiet; then echo "No changes"; exit 0; fi
+          git fetch --quiet --depth 1 origin cards:refs/remotes/origin/cards 2>/dev/null || true # not there on the first run
+          git switch --quiet --orphan cards
+          cp "$RUNNER_TEMP"/cards/*.svg .
+          git add -- *.svg
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Update README cards'
-          git push
+          git commit --quiet -m 'Update README cards'
+          if git rev-parse --quiet --verify origin/cards >/dev/null && git diff --quiet origin/cards HEAD; then
+            echo "No changes"
+            exit 0
+          fi
+          git push --force origin cards
