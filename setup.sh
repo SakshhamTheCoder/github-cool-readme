@@ -459,7 +459,7 @@ NEW_SETUP=false
 if [ ! -f "$WORKFLOW" ]; then
   NEW_SETUP=true
   cp "$wanted" "$WORKFLOW"
-  report added "$WORKFLOW, on $REF: runs daily, and on demand"
+  report added "$WORKFLOW, on $REF: runs every 2 hours, and on demand"
 elif cmp -s "$wanted" "$WORKFLOW"; then
   report ok "$WORKFLOW, on $REF"
 else
@@ -663,6 +663,6 @@ if $DRY_RUN; then
   framed 33 "Dry run: nothing was changed."
 else
   framed 32 "Done: https://github.com/$LOGIN" \
-    "The cards update daily; run this again to change the settings." \
+    "The cards update every 2 hours; run this again to change the settings." \
     "To refresh now: gh workflow run $(basename "$WORKFLOW") -R $PROFILE"
 fi
