@@ -43,7 +43,17 @@ $HAVE_TTY && $COLOUR && FANCY=true
 # on success, on an error, and on Ctrl-C.
 cursor() { if $FANCY; then if [ "$1" = on ]; then printf '\033[?25h'; else printf '\033[?25l'; fi; fi; }
 WORK=""
-cleanup() { cursor on; [ -z "$WORK" ] || rm -rf "$WORK"; }
+# Background jobs (starting and watching the first run) ignore Ctrl-C, so they're stopped here,
+# with what they started; the job first, so it doesn't report its child being stopped.
+stop_jobs() {
+  local job children
+  for job in $(jobs -p); do
+    children="$(pgrep -P "$job" 2>/dev/null || true)"
+    kill "$job" $children 2>/dev/null || true
+    wait "$job" 2>/dev/null || true
+  done
+}
+cleanup() { stop_jobs; cursor on; [ -z "$WORK" ] || rm -rf "$WORK"; }
 trap cleanup EXIT
 trap 'echo; exit 130' INT TERM
 cursor off
