@@ -48,7 +48,7 @@ export interface PullRequest {
 }
 
 export interface Snapshot {
-  version: 4;
+  version: 5;
   generatedAt: string;
   user: { login: string; name: string | null; createdAt: string };
   /** Organizations the user belongs to (lowercase logins). */
@@ -68,4 +68,6 @@ export interface Snapshot {
   pullRequests: PullRequest[];
   /** Owner login (lowercase) -> data: URI of the avatar. */
   avatars: Record<string, string>;
+  /** The contribution calendar since you joined; empty unless the streaks card is on. */
+  allDays: { date: string; count: number }[];
 }

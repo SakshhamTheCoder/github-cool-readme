@@ -24,6 +24,7 @@ function assertWellFormed(svg: string): void {
 const display = (patch: (c: Config) => void = () => {}) => {
   const c = structuredClone(DEFAULT_CONFIG);
   c.style = 'oled';
+  c.color = 'amber';
   patch(c);
   return renderAll(compute(fixture(), c), c);
 };
@@ -119,7 +120,7 @@ describe('oled cards', () => {
   });
 
   it('draws every look', () => {
-    for (const color of ['amber', 'green', 'theme'] as const) {
+    for (const color of ['amber', 'green', 'github'] as const) {
       for (const dots of [true, false]) {
         const files = display((c) => { c.color = color; c.matrix = dots; });
         // LEDs are real circles (round-capped dashes), never a mask or a filter: Safari blurs those.
@@ -127,11 +128,18 @@ describe('oled cards', () => {
         expect(files['summary-dark.svg']).not.toMatch(/mask="url\(#dots\)"|filter=/);
       }
     }
-    // LED panels look the same on both themes; the theme colours follow the viewer's theme.
-    const amber = display();
+    // On their dark panel, amber and green look the same on both themes; the github colours follow the viewer's.
+    const amber = display((c) => (c.background = 'solid'));
     expect(amber['summary-light.svg']).toBe(amber['summary-dark.svg']);
-    const theme = display((c) => (c.color = 'theme'));
-    expect(theme['summary-light.svg']).not.toBe(theme['summary-dark.svg']);
+    const github = display((c) => (c.color = 'github'));
+    expect(github['summary-light.svg']).not.toBe(github['summary-dark.svg']);
+    // Without the panel (the default), amber and green are darker on a light page, and the same as ever on a dark one.
+    const clear = display();
+    expect(clear['summary-light.svg']).toContain('#b35c00');
+    expect(clear['summary-dark.svg']).toContain('#ffab1a');
+    const green = display((c) => (c.color = 'green'));
+    expect(green['summary-light.svg']).toContain('#1a7f37');
+    expect(green['summary-dark.svg']).toContain('#3dff74');
   });
 
   it('can show the GitHub mark in the ring', () => {
@@ -142,12 +150,19 @@ describe('oled cards', () => {
     assertWellFormed(logo);
   });
 
-  it('can leave out the dark panel for a transparent background', () => {
-    const panel = display()['summary-dark.svg'];
-    const clear = display((c) => (c.transparent = true))['summary-dark.svg'];
+  it('is transparent by default, or on its dark panel, or on a colour of your own', () => {
+    const clear = display()['summary-dark.svg'];
+    const panel = display((c) => (c.background = 'solid'))['summary-dark.svg'];
     expect(panel).toContain('fill="#0d0b07"'); // the amber panel
     expect(clear).not.toContain('fill="#0d0b07"');
     expect(clear).toContain('stroke-dasharray="0 3"'); // still LEDs, now on whatever is behind
+    // A colour is the same for every viewer, with the shades that suit it.
+    const dark = display((c) => ((c.color = 'github'), (c.background = '#030506')));
+    expect(dark['summary-light.svg']).toBe(dark['summary-dark.svg']);
+    expect(dark['summary-light.svg']).toContain('fill="#030506"');
+    expect(dark['summary-light.svg']).toContain('#f0f6fc'); // github's light text, as on a dark page
+    const light = display((c) => (c.background = '#fff8e7'))['summary-dark.svg'];
+    expect(light).toContain('#b35c00'); // the darker amber
   });
 
   it('drops every animation when they are off', () => {
@@ -161,11 +176,11 @@ describe('oled cards', () => {
   });
 
   it('shows an empty contributions card', () => {
-    expect(renderDisplayContributions([], 'Notable contributions', { look: look('green', 'dark'), dots: true, animations: true, panel: true })).toContain('No contributions');
+    expect(renderDisplayContributions([], 'Notable contributions', { look: look('green', 'dark'), dots: true, animations: true, background: null })).toContain('No contributions');
   });
 
   it('is shown at 400 wide so two fit a row', () => {
-    expect(cardWidths({ ...DEFAULT_CONFIG, style: 'oled' })).toEqual({ summary: 400, languages: 400, contributions: 400, weekly: 400 });
+    expect(Object.values(cardWidths({ ...DEFAULT_CONFIG, style: 'oled' }))).toEqual([400, 400, 400, 400, 400, 400]);
   });
 });
 
@@ -174,12 +189,25 @@ describe('settings', () => {
     const c = parseConfig('style: oled\nmatrix: false\ncolor: green\n');
     expect([c.style, c.matrix, c.color]).toEqual(['oled', false, 'green']);
     expect(() => parseConfig('style: fancy\n')).toThrow('"style" must be "classic" or "oled"');
-    expect(() => parseConfig('color: pink\n')).toThrow('"color" must be "amber", "green" or "theme"');
+    expect(() => parseConfig('color: pink\n')).toThrow('"color" must be "amber", "green" or "github"');
+    expect(parseConfig('color: theme\n').color).toBe('github'); // its old name still works
   });
 
-  it('ignores matrix and color for the classic style', () => {
-    const c = parseConfig('matrix: false\ncolor: green\n'); // style stays classic
+  it('ignores matrix for the classic style', () => {
+    const c = parseConfig('matrix: false\n'); // style stays classic
     const plain = structuredClone(DEFAULT_CONFIG);
     expect(renderAll(compute(fixture(), c), c)).toEqual(renderAll(compute(fixture(), plain), plain));
+  });
+
+  it('gives each style its own colour by default, and colours the classic cards when asked', () => {
+    expect(parseConfig('').color).toBe('github');
+    expect(parseConfig('style: oled\n').color).toBe('amber');
+    const amber = parseConfig('color: amber\ncards: [summary, weekly, streaks]\n');
+    const files = renderAll(compute(fixture(), amber), amber);
+    expect(files['summary-light.svg']).toContain('stroke="#e08a00"'); // the ring
+    expect(files['summary-dark.svg']).toContain('stroke="#ffab1a"');
+    expect(files['weekly-dark.svg']).toMatch(/#ffab1a|#d98a00|#8f5200|#5c3300/); // the bars
+    expect(files['streaks-light.svg']).toContain('fill: #b35c00;'); // the highlighted number
+    expect(files['summary-light.svg']).not.toContain('#0969da'); // no GitHub blue left
   });
 });

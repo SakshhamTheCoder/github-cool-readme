@@ -13,7 +13,7 @@ export const ENTER = 0.6; // seconds an entrance takes
 /** Something on a slide: text in the dot font, or ready-made cells (bars and such). */
 export type Item =
   | { text: string; col: number; row: number; scale?: number; dim?: boolean; shine?: boolean }
-  | { cells: Cell[]; dim?: boolean; fill?: string };
+  | { cells: Cell[]; dim?: boolean; fill?: string; opacity?: number };
 
 export interface Region {
   col: number;
@@ -58,7 +58,7 @@ export function slideshow(id: string, slides: Item[][], region: Region, look: Lo
   const draw = (item: Item, fill = look.lit) =>
     'text' in item
       ? path(textCells(item.text, item.col, item.row, item.scale ?? 1), fill, item.dim ? `fill-opacity="${look.dim}"` : '')
-      : path(item.cells, item.fill ?? fill, item.dim ? `fill-opacity="${look.dim}"` : '');
+      : path(item.cells, item.fill ?? fill, item.opacity !== undefined ? `fill-opacity="${item.opacity}"` : item.dim ? `fill-opacity="${look.dim}"` : '');
 
   const markup = slides.map((items, i) => {
     let content = items.map((it) => draw(it)).join('');
@@ -91,13 +91,19 @@ export function slideshow(id: string, slides: Item[][], region: Region, look: Lo
     if (shining.length) {
       // At rest (no animation) the band waits off the card.
       defs += `<mask id="${P}sh${i}" ${all}><rect class="${P}sh${i}" x="0" y="0" width="${px(5)}" height="${height}" fill="#fff" transform="translate(-${px(10)} 0)"/></mask>`;
+      // The band leans: its foot trails its top by tan(25°) of the card's height, so it travels that much
+      // further to leave the card entirely, or its lower part would stay over text at the right end.
       const sweep = start + ENTER + 0.5;
-      const from = `transform: translateX(${px(region.col) - 30}px) skewX(-25deg);`;
-      const to = `transform: translateX(${px(region.col + region.cols)}px) skewX(-25deg);`;
+      const fromX = px(region.col) - 30;
+      const toX = px(region.col + region.cols) + Math.ceil(height * Math.tan((25 * Math.PI) / 180));
+      const from = `transform: translateX(${fromX}px) skewX(-25deg);`;
+      const to = `transform: translateX(${toX}px) skewX(-25deg);`;
+      const steps = Math.round((toX - fromX) / px(3)); // a step every three dots
+      const takes = (0.6 * (toX - fromX)) / (px(region.cols) + 30); // at the speed it always had
       css += `\n  .${P}sh${i} { animation: ${P}sh${i} ${total}s infinite; }` + keyframes(`${P}sh${i}`, total, [
         { t: 0, css: from },
-        { t: sweep, css: from, ease: `steps(${Math.round(region.cols / 3)})` },
-        { t: sweep + 0.6, css: to },
+        { t: sweep, css: from, ease: `steps(${steps})` },
+        { t: sweep + takes, css: to },
         { t: total, css: to },
       ]);
     }

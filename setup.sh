@@ -235,8 +235,8 @@ yaml_set() { # yaml_set file key value: changes only that line, adding it if mis
 # oled-only rows show only with the oled style.
 # Values are kept in S_STYLE, S_COLOR, S_MATRIX, S_TRANSPARENT, S_PRIVATE, S_ORGS.
 rows() { if [ "$S_STYLE" = oled ]; then echo "private orgs style color matrix transparent"; else echo "private orgs style"; fi; }
-row_name() { case "$1" in style) echo style ;; color) echo colour ;; matrix) echo dots ;; transparent) echo background ;; private) echo "private repos" ;; orgs) echo "org repos" ;; esac; }
-row_values() { case "$1" in style) echo "classic oled" ;; color) echo "amber green theme" ;; transparent) echo "false true" ;; *) echo "true false" ;; esac; }
+row_name() { case "$1" in style) echo style ;; color) echo colour ;; matrix) echo matrix ;; transparent) echo background ;; private) echo "private repos" ;; orgs) echo "org repos" ;; esac; }
+row_values() { case "$1" in style) echo "classic oled" ;; color) echo "amber green github" ;; transparent) echo "true false" ;; *) echo "true false" ;; esac; }
 row_label() { # row_label row value: what the value is called on screen
   case "$1:$2" in
     matrix:true) echo round ;; matrix:false) echo square ;;
@@ -521,7 +521,8 @@ cd "$WORK/repo"
 
 # ------------------------------------------------------------------ cards
 
-CARD_NAMES="summary languages contributions weekly"
+CARD_NAMES="summary languages contributions weekly streaks about"
+DEFAULT_CARDS="summary languages contributions weekly" # on unless cool-readme.yml says otherwise
 cards_get() { # cards_get file: the cards it lists, as a flow list or a block list; empty if none
   [ -f "$1" ] || return 0
   awk '
@@ -584,7 +585,7 @@ section "Cards"
 WAS_OFF=false
 [ -f "$CONFIG" ] && grep -Eq '^cards:[[:space:]]*\[[[:space:]]*\]' "$CONFIG" && WAS_OFF=true
 cur_cards="$(known "$(cards_get "$CONFIG")")" # in the order they're listed: the README's
-$WAS_OFF || cur_cards="${cur_cards:-$CARD_NAMES}"
+$WAS_OFF || cur_cards="${cur_cards:-$DEFAULT_CARDS}"
 S_CARDS="$cur_cards"
 OFF=""
 for card in $CARD_NAMES; do card_on "$card" || OFF="${OFF:+$OFF }$card"; done
@@ -646,11 +647,12 @@ else
     cur_private="$(yaml_get "$CONFIG" include.private)"; cur_orgs="$(yaml_get "$CONFIG" include.orgs)"
     cur_style="$(yaml_get "$CONFIG" style)"; cur_color="$(yaml_get "$CONFIG" color)"; cur_matrix="$(yaml_get "$CONFIG" matrix)"
     cur_transparent="$(yaml_get "$CONFIG" transparent)"
+    [ "$cur_color" = theme ] && cur_color=github # its name until v1.5
   else
     cur_private=""; cur_orgs=""; cur_style=""; cur_color=""; cur_matrix=""; cur_transparent=""
   fi
   S_PRIVATE="${cur_private:-true}"; S_ORGS="${cur_orgs:-true}"; S_STYLE="${cur_style:-classic}"
-  S_COLOR="${cur_color:-amber}"; S_MATRIX="${cur_matrix:-true}"; S_TRANSPARENT="${cur_transparent:-false}"
+  S_COLOR="${cur_color:-amber}"; S_MATRIX="${cur_matrix:-true}"; S_TRANSPARENT="${cur_transparent:-true}"
   settings_screen
 
   changes=""
@@ -666,8 +668,8 @@ else
     change style "${cur_style:-classic}" "$S_STYLE" style
     if [ "$S_STYLE" = oled ]; then # with classic these rows were hidden, so they keep their values
       change color "${cur_color:-amber}" "$S_COLOR" colour
-      change matrix "${cur_matrix:-true}" "$S_MATRIX" dots
-      change transparent "${cur_transparent:-false}" "$S_TRANSPARENT" background
+      change matrix "${cur_matrix:-true}" "$S_MATRIX" matrix
+      change transparent "${cur_transparent:-true}" "$S_TRANSPARENT" background
     fi
     if [ "$S_CARDS" != "$cur_cards" ]; then
       cards_set "$CONFIG" "$S_CARDS"
@@ -678,7 +680,7 @@ else
     {
       echo "# Settings: https://github.com/$TOOL_REPO#settings"
       echo "user: $LOGIN"
-      [ "$S_CARDS" = "$CARD_NAMES" ] || echo "cards: [$(printf '%s' "$S_CARDS" | sed 's/ /, /g')]"
+      [ "$S_CARDS" = "$DEFAULT_CARDS" ] || echo "cards: [$(printf '%s' "$S_CARDS" | sed 's/ /, /g')]"
       echo "style: $S_STYLE"
       if [ "$S_STYLE" = oled ]; then echo "color: $S_COLOR"; echo "matrix: $S_MATRIX"; echo "transparent: $S_TRANSPARENT"; fi
       echo "include:"
@@ -686,6 +688,16 @@ else
       echo "  orgs: $S_ORGS"
     } > "$CONFIG"
     report added "$CONFIG"
+  fi
+  # The about card's text is yours to write: an empty section to fill in, the first time it's on.
+  if card_on about && ! grep -q '^about:' "$CONFIG"; then
+    {
+      echo "about:                  # the about card's text"
+      echo "  headline: null        # shown large, e.g. \"Hi, I'm $LOGIN\""
+      echo "  lines: []             # a line each, e.g. [\"I build developer tools.\"]"
+      echo "  facts: {}             # label: text, e.g. { Focus: Rust, Based in: Lisbon }"
+    } >> "$CONFIG"
+    report added "an about: section to $CONFIG; write the about card's text there"
   fi
   note "$(paint 2 "more settings (languages, titles, ...): edit $CONFIG; see github.com/$TOOL_REPO#settings")"
 fi
@@ -744,6 +756,8 @@ card_picture() { # card_picture card
     languages) picture languages "$WIDTH" "Most used languages" ;;
     contributions) picture contributions "$WIDTH" "Notable contributions" ;;
     weekly) picture weekly "$WIDTH" "Weekly rhythm" ;;
+    streaks) picture streaks "$WIDTH" "Streaks" ;;
+    about) picture about "$WIDTH" "About" ;;
   esac
 }
 block="$(mktemp)"

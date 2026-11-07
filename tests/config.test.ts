@@ -21,7 +21,24 @@ describe('config', () => {
     expect(() => parseConfig('languages:\n  count: six\n')).toThrow('"languages.count" must be a positive whole number');
     expect(() => parseConfig('languages:\n  repoWeights:\n    a: -1\n')).toThrow('repoWeights');
     expect(() => parseConfig('theme:\n  background: pink\n')).toThrow('theme.background');
+    expect(() => parseConfig('background: pink\n')).toThrow('"background" must be none or a colour like 030506');
+    expect(() => parseConfig('background: #030506\n')).toThrow('without #');
     expect(() => parseConfig('summary:\n  ring: octocat\n')).toThrow('"summary.ring" must be "percent" or "github"');
+  });
+
+  it('reads the background as written: none, or a colour with or without #', () => {
+    const bg = (text: string) => parseConfig(text).background;
+    expect(bg('')).toBe('none');
+    expect(bg('background: 030506\n')).toBe('#030506'); // YAML alone would make it 30506
+    expect(bg('background: 123456\n')).toBe('#123456');
+    expect(bg('background: 0D1117\n')).toBe('#0d1117');
+    expect(bg('background: "#fff"\n')).toBe('#fff');
+    expect(bg('background: none\n')).toBe('none');
+    // The settings before it: the oled panel, and classic's solid background.
+    expect(bg('style: oled\ntransparent: false\n')).toBe('solid');
+    expect(bg('style: oled\ntransparent: true\n')).toBe('none');
+    expect(bg('theme:\n  background: solid\n')).toBe('solid');
+    expect(bg('style: oled\ntransparent: false\nbackground: none\n')).toBe('none');
   });
 
   it('chooses the cards, each once, or none', () => {

@@ -44,7 +44,7 @@ export function fixture(): Snapshot {
   };
   const dec2025 = { 'octo/game': { commits: 10, pullRequests: 1 } };
   return {
-    version: 4,
+    version: 5,
     generatedAt: '2026-11-04T12:00:00Z',
     user: { login: 'octo', name: 'Octo', createdAt: '2015-03-01T00:00:00Z' },
     orgs: ['acme'],
@@ -101,5 +101,14 @@ export function fixture(): Snapshot {
       pr('hidden/private', '2026-02-01T00:00:00Z', 'MERGED', '2026-02-02T00:00:00Z'),
     ],
     avatars: { big: 'data:image/png;base64,AAAA' },
+    allDays: [
+      { date: '2026-01-01', count: 2 },
+      { date: '2026-01-02', count: 9 },
+      { date: '2026-01-03', count: 1 },
+      { date: '2026-01-04', count: 0 },
+      { date: '2026-02-27', count: 3 },
+      { date: '2026-02-28', count: 3 },
+      { date: '2026-03-01', count: 0 },
+    ],
   };
 }

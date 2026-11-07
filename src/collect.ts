@@ -164,7 +164,9 @@ export async function collect(client: Client, config: Config, log: (msg: string)
 
   // Contributions: the last 12 months, and every calendar year since you joined.
   let calendar: Snapshot['calendar'] = [];
-  const fetchWindow = async (range: { from: Date; to: Date }, withCalendar: boolean): Promise<ContributionWindow> => {
+  // The yearly windows also bring their calendar when the streaks card needs every day since you joined.
+  const allDays: Snapshot['allDays'] = [];
+  const fetchWindow = async (range: { from: Date; to: Date }, withCalendar: boolean, keepDays = false): Promise<ContributionWindow> => {
     const res = await client.query<ContributionsResult>(CONTRIBUTIONS_QUERY, {
       login,
       from: range.from.toISOString(),
@@ -186,9 +188,11 @@ export async function collect(client: Client, config: Config, log: (msg: string)
     add(c.pullRequestReviewContributionsByRepository, 'reviews');
     add(c.issueContributionsByRepository, 'issues');
     if (c.contributionCalendar) {
-      calendar = c.contributionCalendar.weeks
+      const days = c.contributionCalendar.weeks
         .flatMap((w) => w.contributionDays)
         .map((d) => ({ date: d.date, count: d.contributionCount }));
+      if (keepDays) allDays.push(...days);
+      else calendar = days;
     }
     return {
       from: range.from.toISOString(),
@@ -208,7 +212,8 @@ export async function collect(client: Client, config: Config, log: (msg: string)
   const last12Months = await fetchWindow(last12, true);
   const years = yearRanges(new Date(user.createdAt), now);
   log(`Fetching contributions for ${years.length} year(s)`);
-  const allTime = await inParallel(years, 3, (range) => fetchWindow(range, false));
+  const streaks = config.cards.includes('streaks');
+  const allTime = await inParallel(years, 3, (range) => fetchWindow(range, streaks, streaks));
   const restricted = allTime.reduce((s, w) => s + w.restricted, 0);
   if (restricted) {
     log(`note: ${restricted} contributions are in repositories the token cannot see (e.g. ones you lost access to); they are not counted`);
@@ -293,7 +298,7 @@ export async function collect(client: Client, config: Config, log: (msg: string)
   for (const w of client.warnings) log(`warning: ${w}`);
 
   return {
-    version: 4,
+    version: 5,
     generatedAt: now.toISOString(),
     user: { login, name: user.name, createdAt: user.createdAt },
     orgs,
@@ -305,5 +310,6 @@ export async function collect(client: Client, config: Config, log: (msg: string)
     calendar,
     pullRequests,
     avatars,
+    allDays,
   };
 }

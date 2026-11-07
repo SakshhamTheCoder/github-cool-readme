@@ -15,7 +15,7 @@ const FONT = `-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvet
 
 export type Cell = [number, number];
 export type Mode = 'light' | 'dark';
-export type Color = 'amber' | 'green' | 'theme';
+export type Color = 'amber' | 'green' | 'github';
 
 export interface Look {
   /** Lit dots. */
@@ -33,14 +33,23 @@ export interface Look {
   unlitOpacity: number;
 }
 
-export function look(color: Color, mode: Mode): Look {
+/**
+ * The colours of a look. Amber and green are the same on both themes, like a real display, on their
+ * dark panel; without the panel, a light page gets darker shades of them, as the bright ones fade on white.
+ */
+export function look(color: Color, mode: Mode, panel = true): Look {
+  if (color !== 'github' && !panel && mode === 'light') {
+    return color === 'amber'
+      ? { lit: '#b35c00', accent: '#b35c00', shine: '#6e3800', dim: 0.65, panel: null, unlit: '#b35c00', unlitOpacity: 0.1 }
+      : { lit: '#1a7f37', accent: '#1a7f37', shine: '#0b4d1f', dim: 0.65, panel: null, unlit: '#1a7f37', unlitOpacity: 0.1 };
+  }
   if (color === 'amber') {
     return { lit: '#ffab1a', accent: '#ffab1a', shine: '#fff2cc', dim: 0.55, panel: '#0d0b07', unlit: '#ffab1a', unlitOpacity: 0.09 };
   }
   if (color === 'green') {
     return { lit: '#3dff74', accent: '#3dff74', shine: '#e8ffef', dim: 0.55, panel: '#070d09', unlit: '#3dff74', unlitOpacity: 0.08 };
   }
-  // theme: GitHub's Primer colours, on a transparent background, per light or dark theme.
+  // github: GitHub's Primer colours, on a transparent background, per light or dark theme.
   return mode === 'light'
     ? { lit: '#1f2328', accent: '#0969da', shine: '#0969da', dim: 0.6, panel: null, unlit: '#d1d9e0', unlitOpacity: 0.3 }
     : { lit: '#f0f6fc', accent: '#4493f8', shine: '#4493f8', dim: 0.6, panel: null, unlit: '#3d444d', unlitOpacity: 0.35 };
@@ -169,8 +178,8 @@ export interface Style {
   /** Round LED dots; otherwise the cells are drawn as solid square pixels. */
   dots: boolean;
   animations: boolean;
-  /** The look's dark panel behind the dots; false for a transparent background. */
-  panel: boolean;
+  /** The fill behind the dots; null for none, so the page shows through. */
+  background: string | null;
 }
 
 export interface FrameOptions {
@@ -181,14 +190,14 @@ export interface FrameOptions {
   look: Look;
   dots: boolean;
   animations: boolean;
-  panel: boolean;
+  background: string | null;
   css: string;
   body: string;
 }
 
 export function frame(o: FrameOptions): string {
   const { look: l } = o;
-  const panel = l.panel && o.panel ? `<rect x="0.5" y="0.5" width="${o.width - 1}" height="${o.height - 1}" rx="8" fill="${l.panel}"/>` : '';
+  const panel = o.background ? `<rect x="0.5" y="0.5" width="${o.width - 1}" height="${o.height - 1}" rx="8" fill="${o.background}"/>` : '';
   // The unlit LEDs: one dotted line per row, faint. No masks or filters: Safari blurs those in images.
   let unlit = '';
   if (o.dots) {

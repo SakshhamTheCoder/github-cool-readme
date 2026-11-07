@@ -14,6 +14,8 @@ export interface Theme {
   neutral: string;
   /** The contribution graph's greens, from least to most active: the brighter, the busier. */
   heat: [string, string, string, string];
+  /** GitHub's success green, readable as text: what a graph highlights, and its number. */
+  highlight: string;
 }
 
 // GitHub's own Primer colors, so the cards sit naturally on the profile page.
@@ -28,6 +30,7 @@ export const THEMES: Record<Mode, Theme> = {
     track: '#d1d9e0',
     neutral: '#8c959f',
     heat: ['#216e39', '#30a14e', '#40c463', '#9be9a8'],
+    highlight: '#2da44e',
   },
   dark: {
     background: '#0d1117',
@@ -39,8 +42,30 @@ export const THEMES: Record<Mode, Theme> = {
     track: '#3d444d',
     neutral: '#6e7681',
     heat: ['#0e4429', '#006d32', '#26a641', '#39d353'],
+    highlight: '#3fb950',
   },
 };
+
+/** What a colour changes on the classic cards: the ring, the weekly bars, the streaks highlight. */
+type Tint = Pick<Theme, 'accent' | 'heat' | 'highlight'>;
+const TINTS: Record<'amber' | 'green', Record<Mode, Tint>> = {
+  // Like the greens: deep to pale on a light page, dim to bright on a dark one; the highlight dark
+  // enough to read as text on white.
+  amber: {
+    light: { accent: '#e08a00', heat: ['#9a4d00', '#c26a00', '#f0a020', '#ffd58a'], highlight: '#b35c00' },
+    dark: { accent: '#ffab1a', heat: ['#5c3300', '#8f5200', '#d98a00', '#ffab1a'], highlight: '#ffab1a' },
+  },
+  // GitHub's greens, with the ring green too.
+  green: {
+    light: { accent: '#2da44e', heat: THEMES.light.heat, highlight: THEMES.light.highlight },
+    dark: { accent: '#3fb950', heat: THEMES.dark.heat, highlight: THEMES.dark.highlight },
+  },
+};
+
+/** The classic cards' colours for a mode, in `color`: github leaves GitHub's own. */
+export function themeFor(mode: Mode, color: 'amber' | 'green' | 'github'): Theme {
+  return color === 'github' ? THEMES[mode] : { ...THEMES[mode], ...TINTS[color][mode] };
+}
 
 // One size for every card: two side by side fill a profile README's 800px, shown at their real
 // size so the text isn't scaled down. Every card has the same header line: small uppercase text
@@ -88,6 +113,11 @@ export function formatMonth(iso: string): string {
   return `${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
+export function formatDay(iso: string): string {
+  const d = new Date(iso);
+  return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`;
+}
+
 /** Rough text width for the card fonts, to truncate long names. */
 export function textWidth(s: string, fontSize: number, bold = false): number {
   return s.length * fontSize * (bold ? 0.6 : 0.56);
@@ -122,9 +152,21 @@ export interface CardOptions {
   body: string;
 }
 
+/** Whether text on `colour` ("#rrggbb" or "#rgb") reads best in the light theme's shades or the dark one's. */
+export function surfaceOf(colour: string): Mode {
+  const hex = colour.length === 4 ? colour.replace(/[0-9a-f]/gi, (d) => d + d) : colour;
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  // Dark text where it contrasts more than light text would.
+  return (luminance + 0.05) / 0.05 > 1.05 / (luminance + 0.05) ? 'light' : 'dark';
+}
+
 export function card(o: CardOptions): string {
   const { theme: t, config } = o;
-  const bg = config.theme.background === 'solid' ? t.background : 'none';
+  const bg = config.background === 'none' ? 'none' : config.background === 'solid' ? t.background : config.background;
   const stroke = config.theme.border ? t.border : 'none';
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${o.width}" height="${o.height}" viewBox="0 0 ${o.width} ${o.height}" fill="none" role="img" aria-labelledby="title desc">
 <title id="title">${esc(o.title)}</title>
@@ -143,6 +185,29 @@ export function card(o: CardOptions): string {
 ${o.body}
 </svg>
 `;
+}
+
+/** How long a page of a scrolling list stays in view, and how long it takes to scroll to the next. */
+export const PAGE_HOLD = 3.5;
+export const PAGE_MOVE = 0.8;
+
+/** Scroll offsets of the pages of `count` rows, `visible` at a time; the last page is moved up so it's full. */
+export function pageOffsets(count: number, visible: number, row: number): number[] {
+  const offsets = [0];
+  for (let first = visible; offsets.at(-1)! < (count - visible) * row; first += visible) {
+    offsets.push(Math.min(first, count - visible) * row);
+  }
+  return offsets;
+}
+
+/** CSS for `.name`: hold each page, scroll to the next, and from the last back to the top. */
+export function scrolling(name: string, offsets: number[]): string {
+  const step = PAGE_HOLD + PAGE_MOVE;
+  const seconds = offsets.length * step;
+  const pct = (t: number) => `${((t / seconds) * 100).toFixed(2)}%`;
+  const frames = offsets.map((y, i) => `${pct(i * step)}, ${pct(i * step + PAGE_HOLD)} { transform: translateY(-${y}px); }`);
+  frames.push('100% { transform: translateY(0); }');
+  return `\n  .${name} { animation: ${name} ${seconds}s ease-in-out infinite; }\n  @keyframes ${name} { ${frames.join(' ')} }`;
 }
 
 /** Staggered fade-in wrapper; the transform lives on an outer group so CSS can animate the inner one. */

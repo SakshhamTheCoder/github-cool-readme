@@ -68,7 +68,7 @@ async function main(): Promise<void> {
     }
   }
 
-  if (snapshot.version !== 4) throw new ConfigError('the snapshot was made by an older version; collect it again');
+  if (snapshot.version !== 5) throw new ConfigError('the snapshot was made by an older version; collect it again');
 
   const model = compute(snapshot, config);
   for (const note of model.notes) log(`note: ${note}`);

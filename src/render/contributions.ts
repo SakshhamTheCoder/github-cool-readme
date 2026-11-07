@@ -2,7 +2,7 @@ import type { Config } from '../config.ts';
 import type { ContributionItem } from '../compute.ts';
 import { icon } from './icons.ts';
 import {
-  CARD_HEIGHT, CONTENT_TOP, PAD, SMALL, TEXT, WIDTH, card, esc, fadeIn, formatCompact, formatMonth, headerText, plural,
+  CARD_HEIGHT, CONTENT_TOP, PAD, SMALL, TEXT, WIDTH, card, pageOffsets as pages, scrolling, esc, fadeIn, formatCompact, formatMonth, headerText, plural,
   textWidth, truncate, type Theme,
 } from './svg.ts';
 
@@ -10,8 +10,6 @@ const VISIBLE = 3; // rows in view; more scroll past in a loop
 const ROW = 46;
 const AVATAR = 30;
 const TOP = CONTENT_TOP - 2;
-const HOLD = 3.5; // seconds each page stays in view
-const MOVE = 0.8; // seconds to scroll to the next page
 
 export function describe(i: ContributionItem): string {
   const parts: string[] = [];
@@ -22,21 +20,7 @@ export function describe(i: ContributionItem): string {
 
 /** Scroll offsets of the pages, VISIBLE rows apart; the last page is moved up so it's full. */
 export function pageOffsets(count: number): number[] {
-  const offsets = [0];
-  for (let first = VISIBLE; offsets.at(-1)! < (count - VISIBLE) * ROW; first += VISIBLE) {
-    offsets.push(Math.min(first, count - VISIBLE) * ROW);
-  }
-  return offsets;
-}
-
-/** Keyframes that hold each page, scroll to the next, and from the last back to the top. */
-function scrollKeyframes(offsets: number[]): { css: string; seconds: number } {
-  const step = HOLD + MOVE;
-  const seconds = offsets.length * step;
-  const pct = (t: number) => `${((t / seconds) * 100).toFixed(2)}%`;
-  const frames = offsets.map((y, i) => `${pct(i * step)}, ${pct(i * step + HOLD)} { transform: translateY(-${y}px); }`);
-  frames.push('100% { transform: translateY(0); }');
-  return { css: `\n  @keyframes scroll { ${frames.join(' ')} }`, seconds };
+  return pages(count, VISIBLE, ROW);
 }
 
 export function renderContributions(items: ContributionItem[], theme: Theme, config: Config): string {
@@ -86,8 +70,7 @@ export function renderContributions(items: ContributionItem[], theme: Theme, con
 
   // Only VISIBLE rows fit; with more, they scroll up a page at a time, then back to the top.
   const scrolls = items.length > VISIBLE && config.theme.animations;
-  const keyframes = scrolls ? scrollKeyframes(pageOffsets(items.length)) : null;
-  const css = keyframes ? `\n  .scroll { animation: scroll ${keyframes.seconds}s ease-in-out infinite; }${keyframes.css}` : '';
+  const css = scrolls ? scrolling('scroll', pageOffsets(items.length)) : '';
   const view = `<clipPath id="rows"><rect x="0" y="${TOP - 4}" width="${WIDTH}" height="${VISIBLE * ROW}"/></clipPath>`;
 
   return card({

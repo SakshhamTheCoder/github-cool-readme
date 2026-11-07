@@ -1,4 +1,5 @@
 import { repoKey, type Config } from './config.ts';
+import { streakDays, streakStats, type StreakDays, type Tile } from './stats.ts';
 import type { ContributionWindow, Snapshot } from './types.ts';
 
 export type CountKey = 'commits' | 'pullRequests' | 'reviews' | 'issues';
@@ -41,6 +42,9 @@ export interface Model {
   languages: LanguageItem[];
   contributions: ContributionItem[];
   weekly: WeekdayItem[];
+  streaks: Tile[];
+  /** The days behind the streaks, for the OLED card's strip. */
+  streakDays: StreakDays;
   /** Things the user should know, e.g. config entries that matched nothing. */
   notes: string[];
 }
@@ -221,5 +225,12 @@ export function compute(snapshot: Snapshot, config: Config): Model {
     weekly[(sundayFirst + 6) % 7].count += d.count;
   }
 
-  return { summary, languages, contributions, weekly, notes };
+  // Streaks: every day since you joined. Like the weekly rhythm, the calendar can't be filtered.
+  const streaks = streakStats(snapshot.allDays);
+  const days = streakDays(snapshot.allDays);
+  if (filtering && config.cards.includes('streaks')) {
+    notes.push('the include settings cannot filter the contribution calendar, so the streaks card still counts private and organization work');
+  }
+
+  return { summary, languages, contributions, weekly, streaks, streakDays: days, notes };
 }
