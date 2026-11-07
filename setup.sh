@@ -105,8 +105,8 @@ quit() { # Esc: stop here
   framed 33 "Stopped: nothing after this step was changed."
   exit 1
 }
-read_key() { # read_key: one key into KEY, "" for Enter, LEFT and RIGHT for those arrows. Esc quits;
-             # other keys like them (up, down, F1, ...) are ignored.
+read_key() { # read_key: one key into KEY, "" for Enter, UP DOWN LEFT RIGHT for the arrows. Esc quits;
+             # other keys like them (F1, Home, ...) are ignored.
   local saved rest c n
   while :; do
     IFS= read -rsn1 KEY < /dev/tty || { KEY=""; return 0; }
@@ -127,6 +127,8 @@ read_key() { # read_key: one key into KEY, "" for Enter, LEFT and RIGHT for thos
     stty "$saved" < /dev/tty
     [ -n "$rest" ] || quit
     case "$rest" in
+      '[A' | 'OA') KEY=UP; return 0 ;;
+      '[B' | 'OB') KEY=DOWN; return 0 ;;
       '[D' | 'OD') KEY=LEFT; return 0 ;;
       '[C' | 'OC') KEY=RIGHT; return 0 ;;
     esac
@@ -465,7 +467,7 @@ ask_token() { # ask_token: a new classic token, checked, then stored as the secr
     cursor on
     quiet_keys on # a paste comes in one go; without this, what lands between two reads is shown
     while read_key && [ -n "$KEY" ]; do
-      case "$KEY" in $'\177' | $'\b') TOKEN="${TOKEN%?}" ;; LEFT | RIGHT) ;; *) TOKEN="$TOKEN$KEY" ;; esac
+      case "$KEY" in $'\177' | $'\b') TOKEN="${TOKEN%?}" ;; UP | DOWN | LEFT | RIGHT) ;; *) TOKEN="$TOKEN$KEY" ;; esac
     done
     quiet_keys off
     cursor off; echo
@@ -545,19 +547,37 @@ cards_set() { # cards_set file "card card": writes "cards: [card, card]" in plac
     END { if (!done) print "cards: " value }' "$1" > "$tmp" && mv "$tmp" "$1"
 }
 card_on() { case " $S_CARDS " in *" $1 "*) return 0 ;; esac; return 1; }
-in_order() { # in_order "card card": the known cards among them, in the usual order
+known() { # known "card card": the known cards among them, each once, in the order given
   local card out=""
-  for card in $CARD_NAMES; do case " $1 " in *" $card "*) out="${out:+$out }$card" ;; esac; done
+  for card in $1; do
+    case " $CARD_NAMES " in *" $card "*) ;; *) continue ;; esac
+    case " $out " in *" $card "*) ;; *) out="${out:+$out }$card" ;; esac
+  done
   echo "$out"
 }
-draw_cards() { # draw_cards hint: the cards, those that are on in green, then the hint if any
-  local n=1 card line=""
-  for card in $CARD_NAMES; do
-    if card_on "$card"; then line="$line  $(paint 1 "[$n]") $(paint '1;32' "$card")"
-    else line="$line  $(paint 1 "[$n]") $(paint 2 "$card")"; fi
+# The cards screen: one row per card, the ones that are on (S_CARDS, in README order) at the top,
+# in green, the ones that are off (OFF) below them, dim. A row's number turns its card off (it
+# goes to the top of the off ones) or on (it goes to the bottom of the on ones). The ▸ (SEL) is
+# on a card that's on: the one just turned on, or after turning one off the last one that's on;
+# up and down move it among the cards that are on.
+without() { printf ' %s ' "$1" | sed "s/ $2 / /; s/^ *//; s/ *$//"; } # without "list" card
+move_card() { # move_card up|down: SEL one place up or down among the cards that are on
+  local a i j t
+  a=($S_CARDS)
+  for ((i = 0; i < ${#a[@]}; i++)); do [ "${a[$i]}" = "$SEL" ] && break; done
+  if [ "$1" = up ]; then j=$((i - 1)); else j=$((i + 1)); fi
+  { [ "$i" -lt "${#a[@]}" ] && [ "$j" -ge 0 ] && [ "$j" -lt "${#a[@]}" ]; } || return 0
+  t="${a[$i]}"; a[$i]="${a[$j]}"; a[$j]="$t"
+  S_CARDS="${a[*]}"
+}
+draw_cards() { # draw_cards hint: a row per card, those that are on in green, the selected one marked; then the hint if any
+  local card mark name n=1
+  for card in $S_CARDS $OFF; do
+    mark="  "; [ -n "$1" ] && [ "$card" = "$SEL" ] && mark="$(paint 1 '▸') "
+    if card_on "$card"; then name="$(paint '1;32' "$card")"; else name="$(paint 2 "$card")"; fi
+    printf '%s%s%s %s\n' "${INDENT%  }" "$mark" "$(paint 1 "[$n]")" "$name"
     n=$((n + 1))
   done
-  printf '  %-8s%s\n' show "$line"
   [ -z "$1" ] || printf '%s%s\n' "$INDENT" "$(paint 2 "$1")"
 }
 
@@ -566,11 +586,15 @@ section "Cards"
 # only when you start it. The marked block stays in the README, so they come back in the same place.
 WAS_OFF=false
 [ -f "$CONFIG" ] && grep -Eq '^cards:[[:space:]]*\[[[:space:]]*\]' "$CONFIG" && WAS_OFF=true
-cur_cards="$(in_order "$(cards_get "$CONFIG")")"
+cur_cards="$(known "$(cards_get "$CONFIG")")" # in the order they're listed: the README's
 $WAS_OFF || cur_cards="${cur_cards:-$CARD_NAMES}"
 S_CARDS="$cur_cards"
+OFF=""
+for card in $CARD_NAMES; do card_on "$card" || OFF="${OFF:+$OFF }$card"; done
+SEL="${S_CARDS%% *}"
+ROWS="$(set -- $CARD_NAMES; echo $#)"
 cards_hint() {
-  if [ -n "$S_CARDS" ]; then echo "press [1]-[4] to turn a card on or off, Enter to continue"
+  if [ -n "$S_CARDS" ]; then echo "press [1]-[$ROWS] for on/off, ↑↓ to move it, Enter to continue"
   else echo "all off: cards out of your README, no schedule; Enter to continue"; fi
 }
 if $FANCY; then
@@ -579,20 +603,25 @@ if $FANCY; then
   while :; do
     read_key
     [ -n "$KEY" ] || break
-    n=1
-    for card in $CARD_NAMES; do
-      if [ "$KEY" = "$n" ]; then
-        if card_on "$card"; then S_CARDS="$(in_order "$(printf ' %s ' "$S_CARDS" | sed "s/ $card / /")")"
-        else S_CARDS="$(in_order "$S_CARDS $card")"
-        fi
-      fi
-      n=$((n + 1))
-    done
-    printf '\033[2A\r\033[J'
+    case "$KEY" in
+      UP) move_card up ;;
+      DOWN) move_card down ;;
+      [1-9])
+        card="$(set -- $S_CARDS $OFF; if [ "$KEY" -le $# ]; then eval "echo \${$KEY}"; fi)" # the card on that row
+        if [ -z "$card" ]; then :
+        elif card_on "$card"; then
+          S_CARDS="$(without "$S_CARDS" "$card")"; OFF="$card${OFF:+ $OFF}"
+          SEL="${S_CARDS##* }"
+        else
+          OFF="$(without "$OFF" "$card")"; S_CARDS="${S_CARDS:+$S_CARDS }$card"
+          SEL="$card"
+        fi ;;
+    esac
+    printf '\033[%dA\r\033[J' $((ROWS + 1))
     draw_cards "$(cards_hint)"
   done
   quiet_keys off
-  printf '\033[2A\r\033[J' # the cards stay, the hint goes
+  printf '\033[%dA\r\033[J' $((ROWS + 1)) # the cards stay, the hint and the ▸ go
   draw_cards ""
 elif [ -n "$S_CARDS" ]; then
   report ok "cards: $(printf '%s' "$S_CARDS" | sed 's/ /, /g')"

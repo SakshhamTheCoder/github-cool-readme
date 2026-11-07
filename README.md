@@ -162,7 +162,7 @@ Same for `contributions`, `languages` and `weekly`. Show every card at `width="4
 
 ```yaml
 user: null              # defaults to the token's owner
-cards: [summary, languages, contributions, weekly]   # the cards to make; [] makes none
+cards: [summary, languages, contributions, weekly]   # the cards to make, in README order; [] makes none
 style: classic          # or oled: pinball-style dot-matrix cards
 matrix: true            # oled only; false: square pixels instead of round LEDs
 color: amber            # oled only: amber, green or theme (GitHub's colours, light or dark)
