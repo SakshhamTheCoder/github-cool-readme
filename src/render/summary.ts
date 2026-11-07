@@ -13,7 +13,8 @@ const ICONS: Record<CountKey, IconName> = {
 const ROW = 28;
 const COL = 222; // right edge of the numbers: the year's and the all-time ones take turns there
 const RING_X = 306; // centred in the space right of the numbers
-const TURN = 3; // seconds each of the two stays in view
+const STILL = 3.5; // seconds each of the two stays still, as long as a page of the contributions card
+const HALF_FLIP = 0.18; // seconds to fold one away, and again to unfold the other
 const STAGGER = 70; // ms between the rows as they flip
 const RADIUS = 40;
 const LOGO = 66; // GitHub mark: nearly fills the ring, as on the old github-readme-stats card
@@ -70,9 +71,12 @@ ${
     : `<g class="pop"><text x="${RING_X}" y="${cy + 7}" text-anchor="middle" style="font-size: 20px; font-weight: 700;">${m.activity.percent}%</text></g>`
 }`;
 
-  // Each shows for TURN seconds, then flips: it folds to a line and the other unfolds from it.
+  // Each stays still for STILL seconds, then flips: it folds to a line and the other unfolds from it.
   // Without motion (reduced motion), all time.
-  const cycle = `${2 * TURN}s ease-in-out infinite`;
+  const seconds = 2 * STILL + 4 * HALF_FLIP;
+  const at = (t: number) => `${((t / seconds) * 100).toFixed(2)}%`;
+  const [s, h] = [STILL, HALF_FLIP];
+  const cycle = `${seconds.toFixed(2)}s ease-in-out infinite`;
   const css =
     `\n  .logo { fill: ${theme.text}; }` +
     (turns
@@ -80,9 +84,10 @@ ${
         `\n  .year, .all { transform-box: fill-box; transform-origin: center; }` +
         `\n  .year { opacity: 0; animation: year ${cycle} both; }` +
         `\n  .all { animation: all ${cycle} both; }` +
-        `\n  @keyframes year { 0%, 44% { opacity: 1; transform: scaleY(1); } 47%, 97% { opacity: 1; transform: scaleY(0); }` +
+        `\n  @keyframes year { 0%, ${at(s)} { opacity: 1; transform: scaleY(1); } ${at(s + h)}, ${at(2 * s + 3 * h)} { opacity: 1; transform: scaleY(0); }` +
         ` 100% { opacity: 1; transform: scaleY(1); } }` +
-        `\n  @keyframes all { 0%, 47% { transform: scaleY(0); } 50%, 94% { transform: scaleY(1); } 97%, 100% { transform: scaleY(0); } }`
+        `\n  @keyframes all { 0%, ${at(s + h)} { transform: scaleY(0); } ${at(s + 2 * h)}, ${at(2 * s + 2 * h)} { transform: scaleY(1); }` +
+        ` ${at(2 * s + 3 * h)}, 100% { transform: scaleY(0); } }`
       : '');
 
   const desc = [
