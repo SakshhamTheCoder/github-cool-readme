@@ -724,6 +724,7 @@ card_picture() { # card_picture card
 block="$(mktemp)"
 {
   echo "$START"
+  echo "<!-- Cards by github-cool-readme: https://github.com/$TOOL_REPO -->" # in the source only, not shown
   n=0
   for card in $S_CARDS; do # two cards per row
     [ $((n % 2)) = 0 ] && echo '<p align="center">'
