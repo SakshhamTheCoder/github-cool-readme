@@ -10,9 +10,9 @@ import { sparkleTiles } from './slides.ts';
 
 const SLOT = COLS / 3; // columns per day: three days in view
 const BAR_COLS = 16;
-const BASE = 47; // the bars stand on this row
-const MAX_ROWS = 30;
-const LABEL_ROW = 52;
+const BASE = 52; // the bars stand on this row
+const MAX_ROWS = 35;
+const LABEL_ROW = 57;
 
 // The loop, in seconds.
 const SPARKLE = 0.6; // dots switching on in random order
@@ -29,7 +29,7 @@ export function renderDisplayWeekly(days: WeekdayItem[], title: string | null, s
   if (!max) {
     return frame({
       width: W, height: H, title: title ?? 'Weekly rhythm', desc: 'No contributions in the last 12 months.', ...style, css: '',
-      body: header + path(textCells('NO ACTIVITY YET', 4, 28), look.lit),
+      body: header + path(textCells('NO ACTIVITY YET', 4, 32), look.lit),
     });
   }
 

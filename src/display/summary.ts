@@ -26,14 +26,14 @@ export function renderDisplaySummary(m: SummaryModel, style: Style): string {
   // The stat's name sits on the title line, like the other cards' titles.
   const slides: Item[][] = stats.map((s) => [
     { text: s.label, col: 4, row: TITLE_ROW },
-    { text: fmt(s.year), col: 4, row: 19, scale: 2, shine: true },
-    { text: `TOTAL ${fmt(s.total)}`, col: 4, row: 41, dim: true },
+    { text: fmt(s.year), col: 4, row: 23, scale: 2, shine: true },
+    { text: `TOTAL ${fmt(s.total)}`, col: 4, row: 45, dim: true },
   ]);
-  const show = slideshow('a', slides, { col: 0, row: 1, cols: 80, rows: 63 }, look); // every effect
+  const show = slideshow('a', slides, { col: 0, row: 1, cols: 80, rows: 71 }, look); // every effect
 
   // The ring: always on, filling up once to the share of active days. Its title is above it.
   const cx = 113.5;
-  const cy = 37.5;
+  const cy = 41.5;
   const outer = 24.5;
   const ring = ringCells(cx, cy, outer, 3);
   const mid = px(outer - 1.5);

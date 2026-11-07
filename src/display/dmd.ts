@@ -3,11 +3,12 @@
 
 export const PITCH = 3;
 
-// Every display card has the same size: 150 x 65 cells.
+// Every display card has the same size: 150 x 73 cells, 450 x 219, the classic cards' shape:
+// shown 400 wide, both are 400 x 195.
 export const COLS = 150;
-export const ROWS = 65;
+export const ROWS = 73;
 export const W = COLS * PITCH; // 450
-export const H = ROWS * PITCH; // 195
+export const H = ROWS * PITCH; // 219
 /** The row of the title line at the top of every card. */
 export const TITLE_ROW = 3;
 const FONT = `-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif`;

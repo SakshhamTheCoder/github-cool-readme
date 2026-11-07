@@ -112,7 +112,7 @@ describe('oled cards', () => {
     const files = display();
     expect(Object.keys(files).sort()).toEqual(Object.keys(renderAll(compute(fixture(), DEFAULT_CONFIG), DEFAULT_CONFIG)).sort());
     for (const [name, svg] of Object.entries(files)) {
-      expect(svg, name).toMatch(/<svg [^>]*width="450" height="195"/);
+      expect(svg, name).toMatch(/<svg [^>]*width="450" height="219"/);
       expect(svg, name).not.toMatch(/NaN|undefined|Infinity/);
       assertWellFormed(svg);
     }

@@ -15,7 +15,7 @@ export function renderDisplayContributions(items: ContributionItem[], title: str
   if (!items.length) {
     return frame({
       width: W, height: H, title: title ?? 'Notable contributions', desc: 'No contributions to other projects yet.', ...style, css: '',
-      body: header + path(textCells('NO CONTRIBUTIONS YET', 4, 20), look.lit),
+      body: header + path(textCells('NO CONTRIBUTIONS YET', 4, 24), look.lit),
     });
   }
 
@@ -24,14 +24,14 @@ export function renderDisplayContributions(items: ContributionItem[], title: str
     const counter = `${i + 1}/${items.length}`;
     const counterCol = COLS - 4 - textWidth(counter);
     return [
-      { text: `*${formatCompact(item.stars).toUpperCase()}`, col: 4, row: 14, scale: 2, shine: true },
-      { text: counter, col: counterCol, row: 14, dim: true },
-      { text: fit(`${owner}/`.toUpperCase(), COLS - 8), col: 4, row: 33, dim: true },
-      { text: fit(repo.toUpperCase(), COLS - 8), col: 4, row: 42 },
-      { text: fit(describe(item).toUpperCase(), COLS - 8), col: 4, row: 53, dim: true },
+      { text: `*${formatCompact(item.stars).toUpperCase()}`, col: 4, row: 18, scale: 2, shine: true },
+      { text: counter, col: counterCol, row: 18, dim: true },
+      { text: fit(`${owner}/`.toUpperCase(), COLS - 8), col: 4, row: 37, dim: true },
+      { text: fit(repo.toUpperCase(), COLS - 8), col: 4, row: 46 },
+      { text: fit(describe(item).toUpperCase(), COLS - 8), col: 4, row: 57, dim: true },
     ];
   });
-  const show = slideshow('c', slides, { col: 0, row: 12, cols: COLS, rows: 51 }, look, ['push', 'type', 'wipe']);
+  const show = slideshow('c', slides, { col: 0, row: 16, cols: COLS, rows: 51 }, look, ['push', 'type', 'wipe']);
 
   return frame({
     width: W, height: H, title: title ?? 'Notable contributions',

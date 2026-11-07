@@ -5,7 +5,7 @@ import { textCells, textWidth } from './font.ts';
 import { COLS, H, PITCH, TITLE_ROW, W, drawDots, frame, keyframes, path, type Cell, type Look, type Style } from './dmd.ts';
 import { ENTER, HOLD, slideshow, type Item } from './slides.ts';
 
-const BAR = { col: 4, row: 50, cols: COLS - 8, rows: 6 };
+const BAR = { col: 4, row: 54, cols: COLS - 8, rows: 6 };
 const px = (cells: number) => cells * PITCH;
 
 /** Text cut to fit `cols` cells of the dot font. */
@@ -27,7 +27,7 @@ export function renderDisplayLanguages(items: LanguageItem[], title: string | nu
   if (!items.length) {
     return frame({
       width: W, height: H, title: title ?? 'Languages', desc: 'No language data.', ...style, css: '',
-      body: header + path(textCells('NO DATA YET', 4, 20), look.lit),
+      body: header + path(textCells('NO DATA YET', 4, 24), look.lit),
     });
   }
 
@@ -35,12 +35,12 @@ export function renderDisplayLanguages(items: LanguageItem[], title: string | nu
     const counter = `${i + 1}/${items.length}`;
     const counterCol = COLS - 4 - textWidth(counter);
     return [
-      { text: fit(l.name.toUpperCase(), counterCol - 8), col: 4, row: 17 },
-      { text: counter, col: counterCol, row: 17, dim: true },
-      { text: `${l.percent.toFixed(1)}%`, col: 4, row: 28, scale: 2, shine: true },
+      { text: fit(l.name.toUpperCase(), counterCol - 8), col: 4, row: 21 },
+      { text: counter, col: counterCol, row: 21, dim: true },
+      { text: `${l.percent.toFixed(1)}%`, col: 4, row: 32, scale: 2, shine: true },
     ];
   });
-  const show = slideshow('l', slides, { col: 0, row: 14, cols: COLS, rows: 31 }, look, ['push', 'wipe']);
+  const show = slideshow('l', slides, { col: 0, row: 18, cols: COLS, rows: 31 }, look, ['push', 'wipe']);
 
   // One bar for all languages: it grows or shrinks to each language's share, a dot at a time.
   const bar: Cell[] = [];

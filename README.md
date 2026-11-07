@@ -154,7 +154,7 @@ To turn the cards off, run it and turn every card off. They're taken out of your
 </picture>
 ```
 
-Same for `contributions`, `languages` and `weekly`. Show every card at `width="400"`: two fit a row, and on a narrow screen they stack. Classic cards are 400 by 195; OLED ones are 450 by 195, scaled to fit.
+Same for `contributions`, `languages` and `weekly`. Show every card at `width="400"`: two fit a row, and on a narrow screen they stack. Every card then shows as 400 by 195: classic ones are that size, OLED ones are 450 by 219, scaled to fit.
 
 ## Settings
 
