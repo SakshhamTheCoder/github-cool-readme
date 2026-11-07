@@ -24,12 +24,12 @@ describe('config', () => {
     expect(() => parseConfig('summary:\n  ring: octocat\n')).toThrow('"summary.ring" must be "percent" or "github"');
   });
 
-  it('chooses the cards, at least one, each once', () => {
+  it('chooses the cards, each once, or none', () => {
     expect(parseConfig('').cards).toEqual(['summary', 'languages', 'contributions', 'weekly']);
     expect(parseConfig('cards: [summary, weekly]\n').cards).toEqual(['summary', 'weekly']);
     expect(parseConfig('cards:\n  - languages\n').cards).toEqual(['languages']);
     expect(() => parseConfig('cards: [summary, stars]\n')).toThrow('"cards" has "stars"; the cards are summary, languages, contributions, weekly');
-    expect(() => parseConfig('cards: []\n')).toThrow('"cards" must name at least one card');
+    expect(parseConfig('cards: []\n').cards).toEqual([]);
     expect(() => parseConfig('cards: [weekly, weekly]\n')).toThrow('"cards" names a card twice');
     expect(() => parseConfig('cards: summary\n')).toThrow('"cards" must be a list of strings');
   });

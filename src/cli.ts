@@ -48,6 +48,11 @@ async function main(): Promise<void> {
     }
   }
 
+  if (config.cards.length === 0) {
+    log('No cards to make: "cards" is [], so the cards are off');
+    return;
+  }
+
   let snapshot: Snapshot;
   if (values['from-snapshot']) {
     snapshot = JSON.parse(readFileSync(values['from-snapshot'], 'utf8')) as Snapshot;

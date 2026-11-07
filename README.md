@@ -139,6 +139,8 @@ bash <(curl -fsSL https://raw.githubusercontent.com/pedrocatalao/github-cool-rea
 
 The command above needs [gh](https://cli.github.com) logged in. It asks before each change (`--dry-run` changes nothing), and does the steps below. Run it again to change the cards, style, colour or what's counted; your other settings stay as they are.
 
+To turn the cards off, run it and turn every card off. They're taken out of your README, but the marked block stays, so they come back in the same place. The workflow loses its schedule but can still be started by hand. Your token, settings and the `cards` branch are kept. To bring them back, run it again and turn a card on.
+
 ### By hand
 
 1. Create a classic personal access token with the `repo`, `read:org` and `read:user` scopes. If an organization uses SAML SSO, authorize the token for it.
@@ -160,7 +162,7 @@ Same for `contributions` (450 wide), `languages` and `weekly` (350). All cards a
 
 ```yaml
 user: null              # defaults to the token's owner
-cards: [summary, languages, contributions, weekly]   # the cards to make
+cards: [summary, languages, contributions, weekly]   # the cards to make; [] makes none
 style: classic          # or oled: pinball-style dot-matrix cards
 matrix: true            # oled only; false: square pixels instead of round LEDs
 color: amber            # oled only: amber, green or theme (GitHub's colours, light or dark)

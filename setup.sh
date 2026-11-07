@@ -20,10 +20,12 @@ START="<!-- cool-readme:start -->"
 END="<!-- cool-readme:end -->"
 
 DRY_RUN=false
+NO_COMMIT=false # for trying setup out: everything up to the commit, then no commit, push or run
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=true ;;
-    -h|--help) echo "Usage: setup.sh [--dry-run]  (sets up README cards in your profile repo)"; exit 0 ;;
+    --no-commit) NO_COMMIT=true ;;
+    -h|--help) echo "Usage: setup.sh [--dry-run | --no-commit]  (sets up README cards in your profile repo)"; exit 0 ;;
     *) echo "Unknown option: $arg" >&2; exit 2 ;;
   esac
 done
@@ -53,7 +55,15 @@ stop_jobs() {
     wait "$job" 2>/dev/null || true
   done
 }
-cleanup() { stop_jobs; cursor on; [ -z "$WORK" ] || rm -rf "$WORK"; }
+# On the screens that redraw in place, keys typed while they redraw aren't shown, so a quick Enter
+# doesn't add a line and the redraw stays where it is.
+TTY_SAVED=""
+quiet_keys() { # quiet_keys on|off
+  if [ "$1" = on ]; then TTY_SAVED="$(stty -g < /dev/tty)"; stty -echo < /dev/tty
+  elif [ -n "$TTY_SAVED" ]; then stty "$TTY_SAVED" < /dev/tty; TTY_SAVED=""
+  fi
+}
+cleanup() { stop_jobs; quiet_keys off 2>/dev/null || true; cursor on; [ -z "$WORK" ] || rm -rf "$WORK"; }
 trap cleanup EXIT
 trap 'echo; exit 130' INT TERM
 cursor off
@@ -66,7 +76,7 @@ report() { # report status text: green for done, yellow for skipped, red for wha
   local status
   status="$(printf '%-9s' "$1")"
   case "$1" in
-    ok | added | set | updated | created | stored | started | generated | pushed | removed) status="$(paint 32 "$status")" ;;
+    ok | added | set | updated | created | stored | started | generated | pushed | removed | starred) status="$(paint 32 "$status")" ;;
     skipped | kept | "dry run") status="$(paint 33 "$status")" ;;
     missing | failed | old | differs) status="$(paint 31 "$status")" ;;
   esac
@@ -95,21 +105,45 @@ quit() { # Esc: stop here
   framed 33 "Stopped: nothing after this step was changed."
   exit 1
 }
-read_key() { # read_key: one key into KEY, "" for Enter. Esc quits; arrow keys and the like are ignored.
-  local saved rest
+read_key() { # read_key: one key into KEY, "" for Enter, LEFT and RIGHT for those arrows. Esc quits;
+             # other keys like them (up, down, F1, ...) are ignored.
+  local saved rest c n
   while :; do
     IFS= read -rsn1 KEY < /dev/tty || { KEY=""; return 0; }
     [ "$KEY" = "$ESC" ] || return 0
-    # A key like an arrow sends Esc and more right after it; a lone Esc is the Esc key.
+    # A key like an arrow sends Esc and more right after it; a lone Esc is the Esc key. The rest is
+    # read a byte at a time up to its last one, so keys typed right after it aren't lost.
     saved="$(stty -g < /dev/tty)"
     stty -icanon -echo min 0 time 1 < /dev/tty # wait at most a tenth of a second
-    rest="$(dd bs=16 count=1 2>/dev/null < /dev/tty)"
+    rest="$(dd bs=1 count=1 2>/dev/null < /dev/tty)"
+    case "$rest" in
+      '[' | O)
+        for n in 1 2 3 4 5 6; do # Esc [ 1 ; 5 C and the like: ends on a letter or ~
+          c="$(dd bs=1 count=1 2>/dev/null < /dev/tty)"
+          rest="$rest$c"
+          case "$c" in '' | [A-Za-z~]) break ;; esac
+        done ;;
+    esac
     stty "$saved" < /dev/tty
     [ -n "$rest" ] || quit
+    case "$rest" in
+      '[D' | 'OD') KEY=LEFT; return 0 ;;
+      '[C' | 'OC') KEY=RIGHT; return 0 ;;
+    esac
   done
 }
 
-yesno() { # yesno "Question" default(y|n) [d]: one key, no Enter. Returns 0 yes, 1 no, 2 show the diff (with d).
+draw_yesno() { # draw_yesno answer hint: yes and no, the answer in green, then the hint if any
+  local v line=""
+  for v in yes no; do
+    if [ "$v" = "$1" ]; then line="$line  $(paint '1;32' "$v")"; else line="$line  $(paint 2 "$v")"; fi
+  done
+  printf '%s%s\n' "$INDENT" "${line#  }"
+  [ -z "$2" ] || printf '%s%s\n' "$INDENT" "$(paint 2 "$2")"
+}
+# yesno "Question" default(y|n) [d]: returns 0 yes, 1 no, 2 show the diff (with d). With the full
+# screen it's a choice like the other screens; otherwise one key, y or n, no Enter.
+yesno() {
   local question="$1" def="$2" hint answer
   if [ "$def" = y ]; then hint="Y/n"; else hint="y/N"; fi
   [ -z "${3:-}" ] || hint="$hint, d: show the changes"
@@ -118,6 +152,30 @@ yesno() { # yesno "Question" default(y|n) [d]: one key, no Enter. Returns 0 yes,
     printf '%s%s  [%s]  %s\n' "$INDENT" "$question" "$hint" "$(paint 2 "$answer (no terminal)")"
     [ "$def" = y ]
     return
+  fi
+  if $FANCY; then # like the other screens: the question, then yes and no; 1 switches, Enter continues
+    printf '%s%s\n' "$INDENT" "$question"
+    answer=no; [ "$def" = y ] && answer=yes
+    hint="press [1] to change, Enter to continue"
+    [ -z "${3:-}" ] || hint="press [1] to change, [d] to show the changes, Enter to continue"
+    quiet_keys on
+    draw_yesno "$answer" "$hint"
+    while :; do
+      read_key
+      case "$KEY" in
+        '') break ;;
+        1) if [ "$answer" = yes ]; then answer=no; else answer=yes; fi ;;
+        LEFT) answer=yes ;;
+        RIGHT) answer=no ;;
+        d | D) [ -n "${3:-}" ] && { answer=diff; break; } ;;
+      esac
+      printf '\033[2A\r\033[J'
+      draw_yesno "$answer" "$hint"
+    done
+    quiet_keys off
+    printf '\033[2A\r\033[J' # the choice stays, the hint goes; for the diff, both go
+    [ "$answer" = diff ] || draw_yesno "$answer" ""
+    case "$answer" in yes) return 0 ;; no) return 1 ;; *) return 2 ;; esac
   fi
   printf '%s%s  %s  ' "$INDENT" "$question" "$(paint 2 "[$hint]")"
   while :; do
@@ -198,7 +256,7 @@ cycle_row() { # the next value of a row, wrapping around
   set_row "$1" "${next:-$first}"
 }
 DRAWN=0 # lines the settings screen took last time, to draw over them
-draw_settings() { # one line per setting, then the hint
+draw_settings() { # draw_settings [done]: one line per setting, then the hint unless done
   local n=1 row v line
   [ "$DRAWN" = 0 ] || printf '\033[%sA\r\033[J' "$DRAWN" # back up, and clear rows that go away
   for row in $(rows); do
@@ -208,10 +266,11 @@ draw_settings() { # one line per setting, then the hint
       else line="$line  $(paint 2 "$(row_label "$row" "$v")")"
       fi
     done
-    printf '    %s  %s%s\n' "$(paint 1 "$n")" "$(printf '%-13s' "$(row_name "$row")")" "$line"
+    printf '%s%s %s%s\n' "$INDENT" "$(paint 1 "[$n]")" "$(printf '%-13s' "$(row_name "$row")")" "$line"
     n=$((n + 1))
   done
-  printf '%s%s\n' "$INDENT" "$(paint 2 "press 1-$((n - 1)) to change, Enter to continue")"
+  if [ "${1:-}" = done ]; then DRAWN=$((n - 1)); return; fi
+  printf '%s%s\n' "$INDENT" "$(paint 2 "press [1]-[$((n - 1))] to change, Enter to continue")"
   DRAWN="$n"
 }
 settings_screen() {
@@ -220,6 +279,7 @@ settings_screen() {
     for row in $(rows); do note "$(printf '%-13s %s' "$(row_name "$row")" "$(row_label "$row" "$(get_row "$row")")")"; done
     return
   fi
+  quiet_keys on
   draw_settings
   while :; do
     read_key
@@ -231,12 +291,122 @@ settings_screen() {
     done
     draw_settings
   done
+  quiet_keys off
+  draw_settings done # the settings stay, the hint goes
 }
+
+# ------------------------------------------------------------------ banner
+
+# If you haven't starred the repo, a star sits beside the title, lit; 1 turns it off and on.
+# Setup goes on by itself after a few seconds, or on Enter, and stars the repo if the star is
+# still lit. The title is the big one in colour when the terminal is wide enough for it (and the
+# star), the small one otherwise.
+BIG_TITLE=( # 75 wide
+  $'\033[0;95m▄▄▄▄▄▄\033[0;37m \033[0;95m▄▄▄▄▄▄\033[0;37m \033[0;95m▄▄▄▄▄▄\033[0;37m \033[0;95m▄▄▄\033[0;37m         \033[0;95m▄▄▄▄▄▄\033[0;37m \033[0;95m▄▄▄▄▄▄\033[0;37m \033[0;95m▄▄▄▄▄▄\033[0;37m \033[0;95m▄▄▄▄▄\033[0;37m  \033[0;95m▄▄▄▄\033[0;37m \033[0;95m▄▄\033[0;37m \033[0;95m▄▄▄▄▄▄\033[0m'
+  $'\033[0;35m▄▄▄\033[0;37m  \033[0;95m▀\033[0;37m \033[0;35m▄▄▄\033[0;37m  \033[0;95m█\033[0;37m \033[0;35m▄▄▄\033[0;37m  \033[0;95m█\033[0;37m \033[0;35m▄▄▄\033[0;37m         \033[0;35m▄▄▄\033[0;37m  \033[0;95m█\033[0;37m \033[0;35m▄▄▄\033[0;37m  \033[0;95m▀\033[0;37m \033[0;35m▄▄▄\033[0;37m  \033[0;95m█\033[0;37m \033[0;35m▄▄▄\033[0;37m  \033[0;95m█\033[0;37m \033[0;35m▄▄▄\033[0;37m \033[0;95m█\033[0;37m \033[0;95m█\033[0;37m \033[0;35m▄▄▄\033[0;37m  \033[0;95m▀\033[0m'
+  $'\033[0;95;45m░░▒\033[0;37m    \033[0;95;45m░░▒\033[0;37m  \033[0;95m█\033[0;37m \033[0;95;45m░░▒\033[0;37m  \033[0;95m█\033[0;37m \033[0;95;45m░░▒\033[0;37m         \033[0;95;45m░░▒\033[0;95m▄▄▀\033[0;37m \033[0;95;45m░░▒\033[0;95m▄\033[0;37m   \033[0;95;45m░░▒\033[0;95m▄▄█\033[0;37m \033[0;95;45m░░▒\033[0;37m  \033[0;95m█\033[0;37m \033[0;95;45m░░▒\033[0;37m \033[0;95m█\033[0;37m \033[0;95m█\033[0;37m \033[0;95;45m░░▒\033[0;95m▄\033[0;37m  \033[0m'
+  $'\033[0;95;45m▒▒▓\033[0;37m    \033[0;95;45m▒▒▓\033[0;37m  \033[0;95m█\033[0;37m \033[0;95;45m▒▒▓\033[0;37m  \033[0;95m█\033[0;37m \033[0;95;45m▒▒▓\033[0;37m         \033[0;95;45m▒▒▓\033[0;37m  \033[0;95m█\033[0;37m \033[0;95;45m▒▒▓\033[0;37m    \033[0;95;45m▒▒▓\033[0;37m  \033[0;95m█\033[0;37m \033[0;95;45m▒▒▓\033[0;37m  \033[0;95m█\033[0;37m \033[0;95;45m▒▒▓\033[0;37m \033[0;95m█\033[0;37m \033[0;95m█\033[0;37m \033[0;95;45m▒▒▓\033[0;37m   \033[0m'
+  $'\033[0;95;45m▓▓\033[0;95m█▄▄█\033[0;37m \033[0;95;45m▓▓\033[0;95m█▄▄█\033[0;37m \033[0;95;45m▓▓\033[0;95m█▄▄█\033[0;37m \033[0;95;45m▓▓\033[0;95m█▄▄█\033[0;37m      \033[0;95;45m▓▓\033[0;95m█\033[0;37m  \033[0;95m█\033[0;37m \033[0;95;45m▓▓█\033[0;95m▄▄█\033[0;37m \033[0;95;45m▓▓\033[0;95m█\033[0;37m  \033[0;95m█\033[0;37m \033[0;95;45m▓▓\033[0;95m█▄▄▀\033[0;37m \033[0;95;45m▓▓\033[0;95m█\033[0;37m   \033[0;95m█\033[0;37m \033[0;95;45m▓▓█\033[0;95m▄▄█\033[0m'
+)
+SMALL_TITLE=( # 42 wide
+  '░█▀▀░█▀█░█▀█░█░░░░░█▀▄░█▀▀░█▀█░█▀▄░█▄█░█▀▀'
+  '░█░░░█░█░█░█░█░░░░░█▀▄░█▀▀░█▀█░█░█░█░█░█▀▀'
+  '░▀▀▀░▀▀▀░▀▀▀░▀▀▀░░░▀░▀░▀▀▀░▀░▀░▀▀░░▀░▀░▀▀▀'
+)
+STAR_ART=(
+  '  ▗█▖  '
+  '▀█████▀'
+  ' ▟▀ ▀▙ '
+)
+TAGLINE="animated cards for your GitHub profile README"
+cols=0
+$HAVE_TTY && cols="$(stty size < /dev/tty 2>/dev/null | awk '{print $2}')"
+
+# The star shows only with the full screen, wide enough for it, when GitHub says you haven't starred it.
+ASK_STAR=false
+if $FANCY && command -v gh >/dev/null && [ "${cols:-0}" -ge 64 ]; then
+  star_err="$(gh api "user/starred/$TOOL_REPO" --silent 2>&1 >/dev/null)" \
+    || case "$star_err" in *"HTTP 404"*) ASK_STAR=true ;; esac
+fi
+
+need=77 # the big title, indented
+$ASK_STAR && need=85 # and the star beside it
+TITLE=()
+if [ "${cols:-0}" -ge "$need" ]; then
+  for line in "${BIG_TITLE[@]}"; do
+    $COLOUR || line="$(printf '%s' "$line" | sed "s/$ESC\[[0-9;]*m//g")"
+    TITLE+=("$line")
+  done
+else
+  for line in "${SMALL_TITLE[@]}"; do # the blocks bright, the shading dim
+    if $COLOUR; then line="$(printf '\033[1m%s\033[0m' "${line//░/$(printf '\033[0;2m░\033[0;1m')}")"; fi
+    TITLE+=("$line")
+  done
+fi
+STAR_TOP=$(((${#TITLE[@]} - 3) / 2)) # the star's first row, centred beside the title
+UP=$((${#TITLE[@]} + 2))             # the banner's rows above the countdown line
+
+STAR=on
+draw_banner() { # draw_banner ask|done: the title with the star beside it; with ask, what the star does
+  local i s tone=2
+  [ "$STAR" = on ] && tone='1;33'
+  for i in "${!TITLE[@]}"; do
+    s=$((i - STAR_TOP))
+    if [ "$s" -ge 0 ] && [ "$s" -lt 3 ]; then printf '  %s %s\033[K\n' "${TITLE[$i]}" "$(paint "$tone" "${STAR_ART[$s]}")"
+    else printf '  %s\033[K\n' "${TITLE[$i]}"; fi
+  done
+  printf '  %s\033[K\n' "$(paint 2 "$TAGLINE")"
+  if [ "$1" = ask ]; then
+    if [ "$STAR" = on ]; then printf '  %s' "$(paint 33 "star the repo to support the author")"
+    else printf '  %s' "$(paint 2 "star the repo to support the author")"; fi
+    printf '%s\033[K\n' "$(paint 2 ", press [1] to change")"
+  fi
+}
+
+echo
+if $ASK_STAR; then
+  frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+  enter_hint="$(paint 2 'Enter to continue')"
+  draw_banner ask
+  quiet_keys on
+  stty -icanon min 0 time 1 < /dev/tty # a key, or nothing after a tenth of a second
+  ticks=40 i=0                         # 4 seconds
+  while [ "$ticks" -gt 0 ]; do
+    printf '\r  \033[36m%s\033[0m setting up github-cool-readme... %d   %s\033[K' \
+      "${frames[$((i % 10))]}" $(((ticks + 9) / 10)) "$enter_hint"
+    i=$((i + 1))
+    k="$(dd bs=16 count=1 2>/dev/null < /dev/tty; echo .)"
+    k="${k%.}"
+    case "$k" in
+      '') ticks=$((ticks - 1)) ;;
+      "$ESC") quit ;;
+      1*)
+        if [ "$STAR" = on ]; then STAR=off; else STAR=on; fi
+        printf '\r\033[%dA' "$UP"
+        draw_banner ask ;;
+    esac
+    case "$k" in *$'\n'* | *$'\r'*) break ;; esac
+  done
+  quiet_keys off
+  printf '\r\033[%dA' "$UP" # the title and the star as you left it, without the key and the countdown
+  draw_banner done
+  printf '\033[J'
+  if [ "$STAR" = on ]; then
+    if $DRY_RUN; then report "dry run" "would star $TOOL_REPO"
+    elif gh api -X PUT "user/starred/$TOOL_REPO" --silent >/dev/null 2>&1; then report starred "$TOOL_REPO, thank you"
+    else report failed "starring $TOOL_REPO; you can star it at https://github.com/$TOOL_REPO"
+    fi
+  fi
+else
+  for line in "${TITLE[@]}"; do printf '  %s\n' "$line"; done
+  printf '  %s\n' "$(paint 2 "$TAGLINE")"
+fi
+echo
 
 # ------------------------------------------------------------------ prerequisites
 
-section "github-cool-readme setup"
 $DRY_RUN && note "$(paint 33 'dry run: nothing will be changed')"
+$NO_COMMIT && note "$(paint 33 'no commit: nothing will be committed, pushed or run')"
 $HAVE_TTY && note "$(paint 2 'Esc quits at any question')"
 
 command -v gh >/dev/null || die "the GitHub CLI (gh) is not installed" "install it from https://cli.github.com"
@@ -282,18 +452,8 @@ fi
 
 # ------------------------------------------------------------------ token
 
-section "Token"
-set_token=true
-if gh secret list -R "$PROFILE" 2>/dev/null | awk '{print $1}' | grep -qx "$SECRET"; then
-  report ok "$SECRET is set (it needs the repo, read:org and read:user scopes)"
-  yesno "Replace it?" n || set_token=false
-else
-  report missing "$SECRET: a classic token with the repo, read:org and read:user scopes"
-  note "it lets the cards count your private and organization work"
-fi
-if $set_token && $DRY_RUN; then
-  report "dry run" "would ask for a token and store it as $SECRET"
-elif $set_token; then
+ask_token() { # ask_token: a new classic token, checked, then stored as the secret
+  local url headers status scopes
   $HAVE_TTY || die "pasting the token needs a terminal" "run this script in one"
   url="https://github.com/settings/tokens/new?scopes=repo,read:org,read:user&description=README%20cards%20($PROFILE)"
   note "Create one here; the scopes are filled in, pick an expiry, then Generate token:"
@@ -304,9 +464,11 @@ elif $set_token; then
     # A key at a time, so Esc quits here too; Backspace works, nothing is shown.
     TOKEN=""
     cursor on
+    quiet_keys on # a paste comes in one go; without this, what lands between two reads is shown
     while read_key && [ -n "$KEY" ]; do
-      case "$KEY" in $'\177' | $'\b') TOKEN="${TOKEN%?}" ;; *) TOKEN="$TOKEN$KEY" ;; esac
+      case "$KEY" in $'\177' | $'\b') TOKEN="${TOKEN%?}" ;; LEFT | RIGHT) ;; *) TOKEN="$TOKEN$KEY" ;; esac
     done
+    quiet_keys off
     cursor off; echo
     [ -n "$TOKEN" ] || continue
     headers="$(curl -sS -o /dev/null -D - -H "Authorization: token $TOKEN" https://api.github.com/user | tr -d '\r')"
@@ -336,6 +498,21 @@ elif $set_token; then
   printf '%s' "$TOKEN" | gh secret set "$SECRET" -R "$PROFILE"
   unset TOKEN
   report stored "the token as $SECRET"
+}
+token_rejected() { # token_rejected run_id: did that run fail on the token?
+  gh run view "$1" -R "$PROFILE" --log-failed 2>/dev/null \
+    | grep -Eq 'the token was rejected|set GITHUB_TOKEN|not been granted the required scopes'
+}
+
+# A secret can't be read back, so a token that's set isn't asked about: the first run uses it, and
+# asks for a new one if it fails on it.
+section "Token"
+if gh secret list -R "$PROFILE" 2>/dev/null | awk '{print $1}' | grep -qx "$SECRET"; then
+  report ok "your token is set"
+else
+  report missing "$SECRET: a classic token with the repo, read:org and read:user scopes"
+  note "it lets the cards count your private and organization work"
+  if $DRY_RUN; then report "dry run" "would ask for a token and store it as $SECRET"; else ask_token; fi
 fi
 
 # ------------------------------------------------------------------ settings and workflow
@@ -374,104 +551,142 @@ in_order() { # in_order "card card": the known cards among them, in the usual or
   for card in $CARD_NAMES; do case " $1 " in *" $card "*) out="${out:+$out }$card" ;; esac; done
   echo "$out"
 }
-draw_cards() { # draw_cards hint: one line, the cards that are on in green
+draw_cards() { # draw_cards hint: the cards, those that are on in green, then the hint if any
   local n=1 card line=""
   for card in $CARD_NAMES; do
-    if card_on "$card"; then line="$line $(paint '1;32' "$n:$card")"; else line="$line $(paint 2 "$n:$card")"; fi
+    if card_on "$card"; then line="$line  $(paint 1 "[$n]") $(paint '1;32' "$card")"
+    else line="$line  $(paint 1 "[$n]") $(paint 2 "$card")"; fi
     n=$((n + 1))
   done
-  printf '\r  %-9s%s   %s\033[K' show "$line" "$(paint 2 "$1")"
+  printf '  %-8s%s\n' show "$line"
+  [ -z "$1" ] || printf '%s%s\n' "$INDENT" "$(paint 2 "$1")"
 }
 
 section "Cards"
+# With every card off ("cards: []") the cards are off: out of the README, and the workflow runs
+# only when you start it. The marked block stays in the README, so they come back in the same place.
+WAS_OFF=false
+[ -f "$CONFIG" ] && grep -Eq '^cards:[[:space:]]*\[[[:space:]]*\]' "$CONFIG" && WAS_OFF=true
 cur_cards="$(in_order "$(cards_get "$CONFIG")")"
-S_CARDS="${cur_cards:-$CARD_NAMES}"
+$WAS_OFF || cur_cards="${cur_cards:-$CARD_NAMES}"
+S_CARDS="$cur_cards"
+cards_hint() {
+  if [ -n "$S_CARDS" ]; then echo "press [1]-[4] to turn a card on or off, Enter to continue"
+  else echo "all off: cards out of your README, no schedule; Enter to continue"; fi
+}
 if $FANCY; then
-  hint="press 1-4 to turn a card on or off, Enter to continue"
+  quiet_keys on
+  draw_cards "$(cards_hint)"
   while :; do
-    draw_cards "$hint"
     read_key
     [ -n "$KEY" ] || break
-    hint="press 1-4 to turn a card on or off, Enter to continue"
     n=1
     for card in $CARD_NAMES; do
       if [ "$KEY" = "$n" ]; then
-        if ! card_on "$card"; then S_CARDS="$(in_order "$S_CARDS $card")"
-        elif [ "$S_CARDS" = "$card" ]; then hint="at least one card stays on"
-        else S_CARDS="$(in_order "$(printf ' %s ' "$S_CARDS" | sed "s/ $card / /")")"
+        if card_on "$card"; then S_CARDS="$(in_order "$(printf ' %s ' "$S_CARDS" | sed "s/ $card / /")")"
+        else S_CARDS="$(in_order "$S_CARDS $card")"
         fi
       fi
       n=$((n + 1))
     done
+    printf '\033[2A\r\033[J'
+    draw_cards "$(cards_hint)"
   done
+  quiet_keys off
+  printf '\033[2A\r\033[J' # the cards stay, the hint goes
   draw_cards ""
-  echo
-else
+elif [ -n "$S_CARDS" ]; then
   report ok "cards: $(printf '%s' "$S_CARDS" | sed 's/ /, /g')"
-fi
-
-section "Settings"
-if [ -f "$CONFIG" ]; then
-  cur_private="$(yaml_get "$CONFIG" include.private)"; cur_orgs="$(yaml_get "$CONFIG" include.orgs)"
-  cur_style="$(yaml_get "$CONFIG" style)"; cur_color="$(yaml_get "$CONFIG" color)"; cur_matrix="$(yaml_get "$CONFIG" matrix)"
-  cur_transparent="$(yaml_get "$CONFIG" transparent)"
 else
-  cur_private=""; cur_orgs=""; cur_style=""; cur_color=""; cur_matrix=""; cur_transparent=""
+  report ok "cards: off"
 fi
-S_PRIVATE="${cur_private:-true}"; S_ORGS="${cur_orgs:-true}"; S_STYLE="${cur_style:-classic}"
-S_COLOR="${cur_color:-amber}"; S_MATRIX="${cur_matrix:-true}"; S_TRANSPARENT="${cur_transparent:-false}"
-settings_screen
+CARDS_OFF=false
+[ -n "$S_CARDS" ] || CARDS_OFF=true
 
-changes=""
-change() { # change key current new label: write the setting if it changed, and note it
-  if [ "$3" != "$2" ]; then
-    yaml_set "$CONFIG" "$1" "$3"
-    changes="${changes:+$changes, }$4: $(row_label "${1#include.}" "$3")"
+if $CARDS_OFF; then
+  # With the cards off the other settings don't matter: they're not asked, and stay as they are
+  # for when the cards are back.
+  if [ ! -f "$CONFIG" ]; then
+    printf '# Settings: https://github.com/%s#settings\nuser: %s\ncards: []\n' "$TOOL_REPO" "$LOGIN" > "$CONFIG"
+    report added "$CONFIG, with the cards off"
+  elif [ "$S_CARDS" != "$cur_cards" ]; then
+    cards_set "$CONFIG" ""
+    report updated "$CONFIG: cards off"
+  else
+    report ok "$CONFIG: cards off"
   fi
-}
-if [ -f "$CONFIG" ]; then
-  change include.private "${cur_private:-true}" "$S_PRIVATE" "private repos"
-  change include.orgs "${cur_orgs:-true}" "$S_ORGS" "org repos"
-  change style "${cur_style:-classic}" "$S_STYLE" style
-  if [ "$S_STYLE" = oled ]; then # with classic these rows were hidden, so they keep their values
-    change color "${cur_color:-amber}" "$S_COLOR" colour
-    change matrix "${cur_matrix:-true}" "$S_MATRIX" dots
-    change transparent "${cur_transparent:-false}" "$S_TRANSPARENT" background
-  fi
-  if [ "$S_CARDS" != "${cur_cards:-$CARD_NAMES}" ]; then
-    cards_set "$CONFIG" "$S_CARDS"
-    changes="${changes:+$changes, }cards: $(printf '%s' "$S_CARDS" | sed 's/ /, /g')"
-  fi
-  if [ -n "$changes" ]; then report updated "$changes"; else report ok "$CONFIG unchanged"; fi
 else
-  {
-    echo "# Settings: https://github.com/$TOOL_REPO#settings"
-    echo "user: $LOGIN"
-    [ "$S_CARDS" = "$CARD_NAMES" ] || echo "cards: [$(printf '%s' "$S_CARDS" | sed 's/ /, /g')]"
-    echo "style: $S_STYLE"
-    if [ "$S_STYLE" = oled ]; then echo "color: $S_COLOR"; echo "matrix: $S_MATRIX"; echo "transparent: $S_TRANSPARENT"; fi
-    echo "include:"
-    echo "  private: $S_PRIVATE"
-    echo "  orgs: $S_ORGS"
-  } > "$CONFIG"
-  report added "$CONFIG"
+  section "Settings"
+  if [ -f "$CONFIG" ]; then
+    cur_private="$(yaml_get "$CONFIG" include.private)"; cur_orgs="$(yaml_get "$CONFIG" include.orgs)"
+    cur_style="$(yaml_get "$CONFIG" style)"; cur_color="$(yaml_get "$CONFIG" color)"; cur_matrix="$(yaml_get "$CONFIG" matrix)"
+    cur_transparent="$(yaml_get "$CONFIG" transparent)"
+  else
+    cur_private=""; cur_orgs=""; cur_style=""; cur_color=""; cur_matrix=""; cur_transparent=""
+  fi
+  S_PRIVATE="${cur_private:-true}"; S_ORGS="${cur_orgs:-true}"; S_STYLE="${cur_style:-classic}"
+  S_COLOR="${cur_color:-amber}"; S_MATRIX="${cur_matrix:-true}"; S_TRANSPARENT="${cur_transparent:-false}"
+  settings_screen
+
+  changes=""
+  change() { # change key current new label: write the setting if it changed, and note it
+    if [ "$3" != "$2" ]; then
+      yaml_set "$CONFIG" "$1" "$3"
+      changes="${changes:+$changes, }$4: $(row_label "${1#include.}" "$3")"
+    fi
+  }
+  if [ -f "$CONFIG" ]; then
+    change include.private "${cur_private:-true}" "$S_PRIVATE" "private repos"
+    change include.orgs "${cur_orgs:-true}" "$S_ORGS" "org repos"
+    change style "${cur_style:-classic}" "$S_STYLE" style
+    if [ "$S_STYLE" = oled ]; then # with classic these rows were hidden, so they keep their values
+      change color "${cur_color:-amber}" "$S_COLOR" colour
+      change matrix "${cur_matrix:-true}" "$S_MATRIX" dots
+      change transparent "${cur_transparent:-false}" "$S_TRANSPARENT" background
+    fi
+    if [ "$S_CARDS" != "$cur_cards" ]; then
+      cards_set "$CONFIG" "$S_CARDS"
+      changes="${changes:+$changes, }cards: $(printf '%s' "$S_CARDS" | sed 's/ /, /g')"
+    fi
+    if [ -n "$changes" ]; then report updated "$changes"; else report ok "$CONFIG unchanged"; fi
+  else
+    {
+      echo "# Settings: https://github.com/$TOOL_REPO#settings"
+      echo "user: $LOGIN"
+      [ "$S_CARDS" = "$CARD_NAMES" ] || echo "cards: [$(printf '%s' "$S_CARDS" | sed 's/ /, /g')]"
+      echo "style: $S_STYLE"
+      if [ "$S_STYLE" = oled ]; then echo "color: $S_COLOR"; echo "matrix: $S_MATRIX"; echo "transparent: $S_TRANSPARENT"; fi
+      echo "include:"
+      echo "  private: $S_PRIVATE"
+      echo "  orgs: $S_ORGS"
+    } > "$CONFIG"
+    report added "$CONFIG"
+  fi
+  note "$(paint 2 "more settings (languages, titles, ...): edit $CONFIG; see github.com/$TOOL_REPO#settings")"
 fi
-note "$(paint 2 "more settings (languages, titles, ...): edit $CONFIG; see github.com/$TOOL_REPO#settings")"
 # OLED cards are all one size, shown 400 wide; classic ones are a wide and a narrow card per row.
 if grep -Eq '^style:[[:space:]]*oled' "$CONFIG"; then WIDE=400; NARROW=400; else WIDE=450; NARROW=350; fi
 
 section "Workflow"
-wanted="$(mktemp)"
+# The template runs on a schedule and on demand; with the cards off, the schedule comes out.
+scheduled="$(mktemp)"; unscheduled="$(mktemp)"
 gh api "repos/$TOOL_REPO/contents/examples/profile-workflow.yml?ref=$REF" -H "Accept: application/vnd.github.raw" \
-  | sed "s#$TOOL_REPO@[A-Za-z0-9._-]*#$TOOL_REPO@$REF#" > "$wanted"
+  | sed "s#$TOOL_REPO@[A-Za-z0-9._-]*#$TOOL_REPO@$REF#" > "$scheduled"
+awk '/^  schedule:/ { print "  # No schedule: the cards are off. Turn one on with setup to bring it back."; next }
+  /^    - cron:/ { next } { print }' "$scheduled" > "$unscheduled"
+if $CARDS_OFF; then wanted="$unscheduled" other="$scheduled" runs_when="runs only when you start it, the cards are off"
+else wanted="$scheduled" other="$unscheduled" runs_when="runs every 2 hours, and on demand"; fi
 mkdir -p "$(dirname "$WORKFLOW")"
 NEW_SETUP=false
 if [ ! -f "$WORKFLOW" ]; then
   NEW_SETUP=true
   cp "$wanted" "$WORKFLOW"
-  report added "$WORKFLOW, on $REF: runs every 2 hours, and on demand"
+  report added "$WORKFLOW, on $REF: $runs_when"
 elif cmp -s "$wanted" "$WORKFLOW"; then
   report ok "$WORKFLOW, on $REF"
+elif cmp -s "$other" "$WORKFLOW"; then # the cards were turned on or off: the schedule follows
+  cp "$wanted" "$WORKFLOW"
+  report updated "$WORKFLOW: $runs_when"
 else
   report differs "$WORKFLOW differs from the template for $REF"
   if yesno "Update it?" y; then cp "$wanted" "$WORKFLOW"; report updated "$WORKFLOW, on $REF"; else report kept "your $WORKFLOW"; fi
@@ -520,6 +735,7 @@ block="$(mktemp)"
   echo "$END"
 } > "$block"
 if [ "$WIDE" = "$NARROW" ]; then size="$WIDE wide"; else size="$WIDE and $NARROW wide"; fi
+shown="the cards"; $CARDS_OFF && shown="no cards (they're off)"
 missing_cards=false # a card that's on but not made yet: the README waits for the first run
 for card in $S_CARDS; do made "$card-light.svg" || missing_cards=true; done
 
@@ -545,7 +761,14 @@ OLD_STATS=false
 $ON_BRANCH && [ -n "$(git ls-files "$OUT")" ] && OLD_STATS=true
 README_LATER=false # true: the README change waits for the first run's cards
 if git diff --quiet README.md && ! $OLD_STATS; then
-  report ok "the cards $where"
+  report ok "$shown $where"
+elif $CARDS_OFF; then
+  if [ "$where" = "between the cool-readme markers" ]; then
+    git diff --quiet README.md || report updated "the cards taken out; the markers stay, so they come back in the same place"
+  else
+    report added "the cool-readme markers $where; the cards go there when you turn them on"
+  fi
+  if $OLD_STATS; then git rm -r --quiet "$OUT"; report removed "$OUT/: no longer used"; fi
 elif ! $missing_cards; then
   git diff --quiet README.md || report updated "the cards $where, $size"
   if $OLD_STATS; then git rm -r --quiet "$OUT"; report removed "$OUT/: the cards are on the $BRANCH branch now"; fi
@@ -580,6 +803,11 @@ commit_and_push() { # commit_and_push "message": asks first; d shows exactly wha
     $README_LATER && report "dry run" "would commit the README once the cards exist"
     return 0
   fi
+  if $NO_COMMIT; then
+    git --no-pager diff --cached --stat | sed "s/^/$INDENT/"
+    report skipped "commit \"$1\" and push (--no-commit)"
+    return 0
+  fi
   question="Commit \"$1\" and push?"
   if $README_LATER; then
     question="Commit \"$1\" and push, and the README once the cards exist?"
@@ -607,6 +835,8 @@ for f in "$WORKFLOW:workflow" "$CONFIG:settings" "README.md:README"; do
 done
 parts="$(printf '%s' "$parts" | sed 's/\(.*\), /\1 and /')"
 if $NEW_SETUP; then msg="Add README cards: $parts"; else msg="Update README cards: $parts"; fi
+$CARDS_OFF && ! $WAS_OFF && msg="Turn README cards off: $parts"
+$WAS_OFF && ! $CARDS_OFF && msg="Turn README cards on: $parts"
 if ! git diff --cached --quiet -- "$OUT"; then
   if [ -n "$parts" ]; then msg="$msg; the cards are on the $BRANCH branch now"; else msg="Remove $OUT/: the README cards are on the $BRANCH branch now"; fi
 fi
@@ -614,7 +844,7 @@ commit_and_push "$msg" || true
 
 # ------------------------------------------------------------------ first run
 
-section "First run"
+$CARDS_OFF || section "First run" # with the cards off there is nothing to run
 wait_with_timer() { # wait_with_timer pid label: a spinner and the time taken, until pid ends; its exit status
   local pid="$1" start="$SECONDS" i=0 s
   local frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
@@ -629,12 +859,15 @@ wait_with_timer() { # wait_with_timer pid label: a spinner and the time taken, u
   fi
   wait "$pid"
 }
-if $DRY_RUN; then
+if $CARDS_OFF; then
+  :
+elif $DRY_RUN; then
   report "dry run" "would run the workflow and wait for the cards"
+elif $NO_COMMIT; then
+  report skipped "the first run (--no-commit)"
 else
   wf="$(basename "$WORKFLOW")"
   runs() { gh run list -R "$PROFILE" -w "$wf" -L 20 --json databaseId --jq '.[].databaseId' 2>/dev/null || true; }
-  before="$(runs)" # earlier runs, so the one started below can be told apart from them
   start_run() {
     # GitHub needs a moment to register a new workflow before it can be started; the run, to show up.
     local id
@@ -645,14 +878,20 @@ else
     done
     return 1
   }
-  start_run & pid=$!
-  wait_with_timer "$pid" "starting the workflow" \
-    || die "the workflow didn't start" "start it from the Actions tab of $PROFILE"
-  run_id="$(cat "$WORK/run")"
-  report started "the workflow"
-  gh run watch "$run_id" -R "$PROFILE" --exit-status >/dev/null 2>&1 & pid=$!
-  wait_with_timer "$pid" "generating the cards, usually 1-3 minutes" \
-    || die "the workflow failed" "see: gh run view $run_id -R $PROFILE --log-failed"
+  while :; do # again with a new token, if the run fails on the one that's set
+    before="$(runs)" # earlier runs, so the one started below can be told apart from them
+    start_run & pid=$!
+    wait_with_timer "$pid" "starting the workflow" \
+      || die "the workflow didn't start" "start it from the Actions tab of $PROFILE"
+    run_id="$(cat "$WORK/run")"
+    report started "the workflow"
+    gh run watch "$run_id" -R "$PROFILE" --exit-status >/dev/null 2>&1 & pid=$!
+    wait_with_timer "$pid" "generating the cards, usually 1-3 minutes" && break
+    token_rejected "$run_id" || die "the workflow failed" "see: gh run view $run_id -R $PROFILE --log-failed"
+    report failed "the workflow couldn't use your token: it expired, was revoked or lacks a scope"
+    yesno "Replace it?" y || die "the cards can't be made with that token" "run this again when you have a new one"
+    ask_token
+  done
   git pull --quiet
   if $ON_BRANCH; then report generated "the cards, on the $BRANCH branch"; else report generated "the cards, in $OUT/"; fi
   if $README_LATER; then
@@ -671,6 +910,12 @@ fi
 
 if $DRY_RUN; then
   framed 33 "Dry run: nothing was changed."
+elif $NO_COMMIT; then
+  framed 33 "No commit: nothing was committed, pushed or run."
+elif $CARDS_OFF; then
+  framed 32 "Done: the cards are off" \
+    "They're out of your README, and the workflow runs only when you start it." \
+    "To bring them back: run this again and turn a card on."
 else
   framed 32 "Done: https://github.com/$LOGIN" \
     "The cards update every 2 hours; run this again to change the settings." \

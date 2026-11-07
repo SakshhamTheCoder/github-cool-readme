@@ -7,7 +7,7 @@ export type Card = (typeof CARDS)[number];
 export interface Config {
   /** GitHub login. Defaults to the token's owner. */
   user: string | null;
-  /** The cards to make; the others are left out. */
+  /** The cards to make; the others are left out. [] turns them all off: nothing is made. */
   cards: Card[];
   /** classic: GitHub-style cards. oled: pinball-style dot-matrix displays. */
   style: 'classic' | 'oled';
@@ -165,7 +165,6 @@ export function parseConfig(text: string): Config {
       throw new ConfigError(`"cards" has "${card}"; the cards are ${CARDS.join(', ')}`);
     }
   }
-  if (config.cards.length === 0) throw new ConfigError('"cards" must name at least one card');
   if (new Set(config.cards).size !== config.cards.length) throw new ConfigError('"cards" names a card twice');
   if (config.summary.ring !== 'percent' && config.summary.ring !== 'github') {
     throw new ConfigError('"summary.ring" must be "percent" or "github"');
