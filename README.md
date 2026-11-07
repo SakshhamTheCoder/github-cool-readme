@@ -137,7 +137,7 @@ Repos you can no longer access (e.g. a former employer's) can't be counted.
 bash <(curl -fsSL https://raw.githubusercontent.com/pedrocatalao/github-cool-readme/v1/setup.sh)
 ```
 
-The command above needs [gh](https://cli.github.com) logged in. It asks before each change (`--dry-run` changes nothing), and does the steps below. Run it again to change the cards, style, colour or what's counted; your other settings stay as they are.
+The command above needs [gh](https://cli.github.com) logged in. It asks before each change (`--dry-run` changes nothing), and does the steps below. Run it again any time to change which cards are shown and in what order, the style, colour or what's counted; your other settings stay as they are.
 
 To turn the cards off, run it and turn every card off. They're taken out of your README, but the marked block stays, so they come back in the same place. The workflow loses its schedule but can still be started by hand. Your token, settings and the `cards` branch are kept. To bring them back, run it again and turn a card on.
 
