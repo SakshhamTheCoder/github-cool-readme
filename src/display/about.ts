@@ -48,7 +48,7 @@ function centred(...blocks: { items: Item[]; rows: number }[]): Item[] {
   return out;
 }
 
-export function renderDisplayAbout(about: Config['about'], style: Style): string {
+export function renderDisplayAbout(about: Config['cards']['about'], style: Style): string {
   const { look } = style;
   drawDots(style.dots);
   const { title, headline, lines, facts } = about;

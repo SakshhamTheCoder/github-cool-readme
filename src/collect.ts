@@ -212,7 +212,7 @@ export async function collect(client: Client, config: Config, log: (msg: string)
   const last12Months = await fetchWindow(last12, true);
   const years = yearRanges(new Date(user.createdAt), now);
   log(`Fetching contributions for ${years.length} year(s)`);
-  const streaks = config.cards.includes('streaks');
+  const streaks = config.show.includes('streaks');
   const allTime = await inParallel(years, 3, (range) => fetchWindow(range, streaks, streaks));
   const restricted = allTime.reduce((s, w) => s + w.restricted, 0);
   if (restricted) {
@@ -284,8 +284,8 @@ export async function collect(client: Client, config: Config, log: (msg: string)
     return !r.isPrivate && r.owner.toLowerCase() !== login.toLowerCase() && !orgs.includes(r.owner.toLowerCase());
   });
   const wanted = new Set([
-    ...outside.sort((a, b) => repos[b].stars - repos[a].stars).slice(0, config.contributions.count + 10),
-    ...config.contributions.pin.map((p) => repoKey(p, login)),
+    ...outside.sort((a, b) => repos[b].stars - repos[a].stars).slice(0, config.cards.contributions.count + 10),
+    ...config.cards.contributions.pin.map((p) => repoKey(p, login)),
   ]);
   const owners = [...new Set([...wanted].filter((r) => repos[r]).map((r) => repos[r].owner.toLowerCase()))];
   const avatars: Record<string, string> = {};

@@ -34,12 +34,12 @@ describe('cards', () => {
     ]);
   });
 
-  it('makes only the cards in the cards setting, in either style', () => {
-    for (const style of ['classic', 'oled'] as const) {
-      const files = render((c) => { c.style = style; c.cards = ['weekly', 'summary']; });
+  it('makes only the cards in the show setting, in every style', () => {
+    for (const style of ['classic', 'oled', 'dotmatrix'] as const) {
+      const files = render((c) => { c.look.style = style; c.show = ['weekly', 'summary']; });
       expect(Object.keys(files).sort()).toEqual(['summary-dark.svg', 'summary-light.svg', 'weekly-dark.svg', 'weekly-light.svg']);
       // The same cards as when all are made: leaving some out changes nothing in the others.
-      const all = render((c) => (c.style = style));
+      const all = render((c) => (c.look.style = style));
       expect(files['summary-dark.svg']).toBe(all['summary-dark.svg']);
     }
   });
@@ -61,7 +61,7 @@ describe('cards', () => {
     const files = render();
     expect(files['summary-light.svg']).toContain('<g class="year"');
     expect(files['summary-light.svg']).toContain('@keyframes all');
-    const still = render((c) => { c.theme.animations = false; })['summary-light.svg'];
+    const still = render((c) => { c.look.animations = false; })['summary-light.svg'];
     expect(still).not.toContain('class="year"');
     expect(still).toContain('ALL TIME');
     expect(still).not.toContain('>YEAR<');
@@ -76,7 +76,7 @@ describe('cards', () => {
     expect(six).toContain('class="scroll"');
     expect(six).toMatch(/@keyframes scroll \{.*translateY\(-138px\).*100% \{ transform: translateY\(0\); \} \}/);
     assertWellFormed(six);
-    c.theme.animations = false;
+    c.look.animations = false;
     expect(renderContributions([1, 2, 3, 4, 5, 6].map(item), THEMES.light, c)).not.toContain('class="scroll"');
   });
 
@@ -91,13 +91,13 @@ describe('cards', () => {
     expect(files['languages-light.svg']).toContain('>MOST USED LANGUAGES<');
     expect(files['contributions-light.svg']).toContain('>NOTABLE CONTRIBUTIONS<');
     expect(files['weekly-light.svg']).toContain('>WEEKLY RHYTHM<');
-    const untitled = render((c) => { c.languages.title = null; c.contributions.title = null; });
+    const untitled = render((c) => { c.cards.languages.title = null; c.cards.contributions.title = null; });
     expect(untitled['languages-light.svg']).not.toContain('class="col"');
     expect(untitled['contributions-light.svg']).not.toContain('class="col"');
   });
 
   it('escapes text', () => {
-    const svg = render((c) => (c.summary.title = 'Tom & <Jerry>'))['summary-light.svg'];
+    const svg = render((c) => (c.cards.summary.title = 'Tom & <Jerry>'))['summary-light.svg'];
     expect(svg).toContain('Tom &#38; &#60;Jerry&#62;');
     assertWellFormed(svg);
   });
@@ -108,7 +108,7 @@ describe('cards', () => {
   });
 
   it('can put the GitHub logo in the ring and the percentage below it', () => {
-    const svg = render((c) => (c.summary.ring = 'github'))['summary-dark.svg'];
+    const svg = render((c) => (c.cards.summary.ring = 'github'))['summary-dark.svg'];
     expect(svg).toContain('class="logo"');
     expect(svg).toContain('>60% ACTIVE DAYS<');
     expect(svg).not.toContain('>60%<');
@@ -116,7 +116,7 @@ describe('cards', () => {
   });
 
   it('drops all animation when disabled', () => {
-    for (const svg of Object.values(render((c) => (c.theme.animations = false)))) {
+    for (const svg of Object.values(render((c) => (c.look.animations = false)))) {
       expect(svg).not.toContain('@keyframes');
       expect(svg).not.toContain('animation-delay');
     }

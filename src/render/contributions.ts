@@ -24,7 +24,7 @@ export function pageOffsets(count: number): number[] {
 }
 
 export function renderContributions(items: ContributionItem[], theme: Theme, config: Config): string {
-  const title = config.contributions.title;
+  const title = config.cards.contributions.title;
   const header = title ? headerText(title, PAD) : '';
   if (!items.length) {
     return card({
@@ -69,7 +69,7 @@ export function renderContributions(items: ContributionItem[], theme: Theme, con
     .join('\n');
 
   // Only VISIBLE rows fit; with more, they scroll up a page at a time, then back to the top.
-  const scrolls = items.length > VISIBLE && config.theme.animations;
+  const scrolls = items.length > VISIBLE && config.look.animations;
   const css = scrolls ? scrolling('scroll', pageOffsets(items.length)) : '';
   const view = `<clipPath id="rows"><rect x="0" y="${TOP - 4}" width="${WIDTH}" height="${VISIBLE * ROW}"/></clipPath>`;
 

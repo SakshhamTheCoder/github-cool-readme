@@ -203,9 +203,10 @@ run() { # run a command that changes something, or just say so in a dry run
 yaml_get() { # yaml_get file key -> value, empty if not set
   awk -v key="$2" '
     BEGIN { n = split(key, k, ".") }
-    n == 1 && $0 ~ "^" k[1] ":" { sub("^" k[1] ":[[:space:]]*", ""); sub("[[:space:]]*#.*$", ""); print; exit }
+    n == 1 && $0 ~ "^" k[1] ":" { sub("^" k[1] ":[[:space:]]*", ""); print uncomment($0); exit }
     n == 2 && /^[^[:space:]#]/ { in_parent = ($0 ~ "^" k[1] ":") }
-    n == 2 && in_parent && $0 ~ "^[[:space:]]+" k[2] ":" { sub("^[[:space:]]+" k[2] ":[[:space:]]*", ""); sub("[[:space:]]*#.*$", ""); print; exit }
+    n == 2 && in_parent && $0 ~ "^[[:space:]]+" k[2] ":" { sub("^[[:space:]]+" k[2] ":[[:space:]]*", ""); print uncomment($0); exit }
+    function uncomment(s) { sub(/^#.*$/, "", s); sub(/[[:space:]]+#.*$/, "", s); return s } # a comment needs a space before it: "#030506" is a value
   ' "$1"
 }
 
@@ -231,22 +232,192 @@ yaml_set() { # yaml_set file key value: changes only that line, adding it if mis
     }' "$1" > "$tmp" && mv "$tmp" "$1"
 }
 
-# The settings screen: one row per setting; its number cycles the value, Enter continues. The
-# oled-only rows show only with the oled style.
-# Values are kept in S_STYLE, S_COLOR, S_MATRIX, S_TRANSPARENT, S_PRIVATE, S_ORGS.
-rows() { if [ "$S_STYLE" = oled ]; then echo "private orgs style color matrix transparent"; else echo "private orgs style"; fi; }
-row_name() { case "$1" in style) echo style ;; color) echo colour ;; matrix) echo matrix ;; transparent) echo background ;; private) echo "private repos" ;; orgs) echo "org repos" ;; esac; }
-row_values() { case "$1" in style) echo "classic oled" ;; color) echo "amber green github" ;; transparent) echo "true false" ;; *) echo "true false" ;; esac; }
+# Settings from before v1.5, moved to the new layout: the same values, the same look, comments
+# kept. Returns 1 when the file is in the new layout already, and 2 when it has something this can't
+# move (a languages section written inline with excludeRepos or repoWeights, say): then the file
+# stays as it is, and the action still reads it.
+migrate_config() { # migrate_config file
+  local tmp status=0
+  tmp="$(mktemp)"
+  awk '
+    function trim(s) { sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+$/, "", s); return s }
+    function value(s) { sub(/[[:space:]]+#.*$/, "", s); return trim(s) }
+    function unq(s) { if (length(s) > 1 && (substr(s, 1, 1) == "\"" || substr(s, 1, 1) == Q) && substr(s, length(s)) == substr(s, 1, 1)) s = substr(s, 2, length(s) - 2); return s }
+    function rest(s) { sub(/^[^:]*:/, "", s); return value(s) } # what follows "key:"
+    function indent(s) { match(s, /^[[:space:]]*/); return substr(s, 1, RLENGTH) }
+    function items(s, out,   n, i, parts) { # the items of a flow list or map, trimmed; how many
+      s = trim(s); s = substr(s, 2, length(s) - 2)
+      n = split(s, parts, ",")
+      for (i = 1; i <= n; i++) out[i] = trim(parts[i])
+      return n
+    }
+    function emit(s) { print s }
+    BEGIN {
+      Q = sprintf("%c", 39)
+      split("style matrix color background transparent include theme summary languages contributions weekly streaks about", o, " ")
+      for (i in o) OLD[o[i]] = 1
+      split("show count look", nw, " ")
+      for (i in nw) NEW[nw[i]] = 1
+      split("summary languages contributions weekly streaks about", cc, " ")
+      for (i in cc) CARD[cc[i]] = 1
+    }
+    { line[++L] = $0 }
+    END {
+      # Blocks: a top-level key, its lines, and the comments and blank lines just before it.
+      b = 0; pending = 0
+      for (i = 1; i <= L; i++) {
+        s = line[i]
+        if (s ~ /^[A-Za-z_][A-Za-z0-9_]*:/) {
+          b++; k = s; sub(/:.*/, "", k); key[b] = k; head[b] = s; nbody[b] = 0
+          npre[b] = 0
+          for (j = 1; j <= pending; j++) pre[b, ++npre[b]] = pend[j]
+          pending = 0; at[k] = b
+        } else if (b == 0) header[++nheader] = s
+        else if (s ~ /^[[:space:]]+[^[:space:]]/ && s !~ /^[[:space:]]+#/) {
+          for (j = 1; j <= pending; j++) body[b, ++nbody[b]] = pend[j]
+          pending = 0; body[b, ++nbody[b]] = s
+        } else pend[++pending] = s
+      }
+      old = 0; new = 0
+      for (i = 1; i <= b; i++) {
+        if (key[i] in OLD) old = 1
+        if (key[i] in NEW) new = 1
+        if (key[i] == "cards") {
+          v = rest(head[i])
+          if (v ~ /^\[/ || (v == "" && nbody[i] && trim(body[i, 1]) ~ /^-/)) old = 1; else new = 1
+        }
+      }
+      if (!old) exit 1
+      if (new) exit 2
+
+      # The look, from the keys it was spread over.
+      style = ("style" in at) ? unq(rest(head[at["style"]])) : "classic"
+      if (style != "classic" && style != "oled") exit 2
+      matrix = ("matrix" in at) ? unq(rest(head[at["matrix"]])) : "true"
+      color = ("color" in at) ? unq(rest(head[at["color"]])) : ""
+      transparent = ("transparent" in at) ? unq(rest(head[at["transparent"]])) : "true"
+      if ("theme" in at) {
+        t = at["theme"]; v = rest(head[t])
+        if (v ~ /^\{/) { n = items(v, it); for (j = 1; j <= n; j++) { split(it[j], kv, ":"); theme[trim(kv[1])] = unq(trim(kv[2])) } }
+        for (j = 1; j <= nbody[t]; j++) {
+          s = trim(body[t, j]); if (s ~ /^#/ || s == "") continue
+          k = s; sub(/:.*/, "", k); theme[k] = unq(rest(s))
+        }
+      }
+      newstyle = style == "oled" ? (matrix == "false" ? "oled" : "dotmatrix") : "classic"
+      if (color == "theme") color = "github"
+      if (color == "") color = style == "oled" ? "amber" : "github"
+      if ("background" in at) bg = rest(head[at["background"]])
+      else if (style == "oled" && transparent == "false") bg = color == "amber" ? "0d0b07" : color == "green" ? "070d09" : "none"
+      else bg = "none"
+
+      for (i = 1; i <= nheader; i++) emit(header[i])
+      if ("user" in at) block(at["user"], "", "")
+      if ("cards" in at) block(at["cards"], "", "show")
+      if ("include" in at) block(at["include"], "", "count")
+      emit("look:")
+      emit("  style: " newstyle)
+      emit("  color: " color)
+      emit("  background: " bg)
+      if ("animations" in theme) emit("  animations: " theme["animations"])
+      if ("border" in theme) emit("  border: " theme["border"])
+      cards = 0
+      for (i = 1; i <= b; i++) if (key[i] in CARD) {
+        if (!cards++) emit("cards:")
+        if (key[i] == "languages") languages(i); else block(i, "  ", "")
+      }
+      for (i = 1; i <= b; i++) if (!(key[i] in OLD) && key[i] != "user" && key[i] != "cards") block(i, "", "")
+      for (j = 1; j <= pending; j++) emit(pend[j])
+    }
+    function block(i, ind, rename,   j, h) { # a block as it was, indented, perhaps under another name
+      for (j = 1; j <= npre[i]; j++) emit(pre[i, j] == "" ? "" : ind pre[i, j])
+      h = head[i]
+      if (rename != "") sub(/^[A-Za-z_][A-Za-z0-9_]*:/, rename ":", h)
+      if (key[i] == "contributions") gsub(/includeOpen:/, "open:", h)
+      emit(ind h)
+      for (j = 1; j <= nbody[i]; j++) {
+        h = body[i, j]
+        if (key[i] == "contributions") gsub(/includeOpen:/, "open:", h)
+        emit(h == "" ? "" : ind h)
+      }
+    }
+    function languages(i,   j, s, ci, k, v, n, it, kv, x, done, nw, wk, wv, ne, ex, seen) {
+      # exclude becomes hide; excludeRepos and repoWeights become repos, left out being a weight of 0.
+      v = rest(head[i])
+      if (v ~ /^\{/) {
+        if (v ~ /excludeRepos|repoWeights/) exit 2
+        s = head[i]; gsub(/exclude:/, "hide:", s); head[i] = s
+        block(i, "  ", ""); return
+      }
+      ci = ""
+      for (j = 1; j <= nbody[i]; j++) if (trim(body[i, j]) != "" && trim(body[i, j]) !~ /^#/) { ci = indent(body[i, j]); break }
+      ne = 0; nw = 0
+      for (j = 1; j <= nbody[i]; j++) { # first, what the repos are
+        s = body[i, j]
+        if (indent(s) != ci) continue
+        k = trim(s); sub(/:.*/, "", k)
+        if (k != "excludeRepos" && k != "repoWeights") continue
+        v = rest(s)
+        if (v ~ /^[\[{]/) {
+          n = items(v, it)
+          for (x = 1; x <= n; x++) if (it[x] != "") {
+            if (k == "excludeRepos") ex[++ne] = it[x]
+            else { split(it[x], kv, ":"); wk[++nw] = trim(kv[1]); wv[nw] = trim(kv[2]) }
+          }
+        } else if (v == "") {
+          while (j < nbody[i] && length(indent(body[i, j + 1])) > length(ci)) {
+            s = trim(body[i, ++j]); if (s ~ /^#/ || s == "") continue
+            if (k == "excludeRepos") { sub(/^-[[:space:]]*/, "", s); ex[++ne] = value(s) }
+            else { split(s, kv, ":"); wk[++nw] = trim(kv[1]); wv[nw] = value(kv[2]) }
+          }
+        } else exit 2
+      }
+      for (x = 1; x <= ne; x++) seen[tolower(unq(ex[x]))] = 1
+      for (j = 1; j <= npre[i]; j++) emit(pre[i, j] == "" ? "" : "  " pre[i, j])
+      emit("  " head[i])
+      done = 0
+      for (j = 1; j <= nbody[i]; j++) {
+        s = body[i, j]
+        k = trim(s); sub(/:.*/, "", k)
+        if (indent(s) == ci && (k == "excludeRepos" || k == "repoWeights")) {
+          if (!done++) {
+            emit("  " ci "repos:")
+            for (x = 1; x <= nw; x++) if (!(tolower(unq(wk[x])) in seen)) emit("  " ci ci wk[x] ": " wv[x])
+            for (x = 1; x <= ne; x++) emit("  " ci ci ex[x] ": 0")
+          }
+          if (rest(s) == "") while (j < nbody[i] && length(indent(body[i, j + 1])) > length(ci)) j++
+          continue
+        }
+        if (indent(s) == ci && k == "exclude") sub(/exclude:/, "hide:", s)
+        emit(s == "" ? "" : "  " s)
+      }
+    }' "$1" > "$tmp" || status=$?
+  if [ "$status" = 0 ]; then mv "$tmp" "$1"; else rm -f "$tmp"; fi
+  return "$status"
+}
+
+# The settings screen: one row per setting; its number cycles the value, Enter continues.
+# Values are kept in S_PRIVATE, S_ORGS, S_STYLE, S_COLOR and S_BG: none, dark (the colour's own dark
+# panel), or a colour of your own from cool-readme.yml (S_BG_OWN), shown as it is.
+rows() { echo "private orgs style color background"; }
+row_name() { case "$1" in color) echo colour ;; private) echo "private repos" ;; orgs) echo "org repos" ;; *) echo "$1" ;; esac; }
+row_values() {
+  case "$1" in
+    style) echo "classic oled dotmatrix" ;; color) echo "github amber green" ;;
+    background) echo "none ${S_BG_OWN:+$S_BG_OWN }dark" ;; *) echo "true false" ;;
+  esac
+}
 row_label() { # row_label row value: what the value is called on screen
   case "$1:$2" in
-    matrix:true) echo round ;; matrix:false) echo square ;;
-    transparent:false) echo panel ;; transparent:true) echo transparent ;;
+    background:none) echo transparent ;;
     private:true | orgs:true) echo counted ;; private:false | orgs:false) echo "not counted" ;;
     *) echo "$2" ;;
   esac
 }
-get_row() { case "$1" in style) echo "$S_STYLE" ;; color) echo "$S_COLOR" ;; matrix) echo "$S_MATRIX" ;; transparent) echo "$S_TRANSPARENT" ;; private) echo "$S_PRIVATE" ;; orgs) echo "$S_ORGS" ;; esac; }
-set_row() { case "$1" in style) S_STYLE="$2" ;; color) S_COLOR="$2" ;; matrix) S_MATRIX="$2" ;; transparent) S_TRANSPARENT="$2" ;; private) S_PRIVATE="$2" ;; orgs) S_ORGS="$2" ;; esac; }
+get_row() { case "$1" in style) echo "$S_STYLE" ;; color) echo "$S_COLOR" ;; background) echo "$S_BG" ;; private) echo "$S_PRIVATE" ;; orgs) echo "$S_ORGS" ;; esac; }
+set_row() { case "$1" in style) S_STYLE="$2" ;; color) S_COLOR="$2" ;; background) S_BG="$2" ;; private) S_PRIVATE="$2" ;; orgs) S_ORGS="$2" ;; esac; }
+panel() { case "$1" in amber) echo 0d0b07 ;; green) echo 070d09 ;; *) echo 0d1117 ;; esac; } # panel color: the dark background
+bg_value() { case "$S_BG" in dark) panel "$S_COLOR" ;; *) echo "$S_BG" ;; esac; } # what background: says
 cycle_row() { # the next value of a row, wrapping around
   local cur next="" first="" v found=false
   cur="$(get_row "$1")"
@@ -299,24 +470,22 @@ settings_screen() {
 
 # ------------------------------------------------------------------ banner
 
-# If you haven't starred the repo, a star sits beside the title, lit; 1 turns it off and on.
-# Setup goes on by itself after a few seconds, or on Enter, and stars the repo if the star is
-# still lit. The star needs a terminal wide enough for the whole title (57 columns), so that it
-# redraws in place.
-TITLE_ART=( # COOL, 40 wide and 8 rows, the star to its right; under it README, 55 wide and 5 rows: 57 wide in all
-  $'\033[0;37m                                \033[0;97m▄\033[0;91m▄▄\033[0;37m     \033[0m'
-  $'\033[0;37m   \033[0;97m▄\033[0;91m▄\033[0;91;41m▓▓\033[0;91m▄\033[0;37m     \033[0;97m▄\033[0;91m▄\033[0;91;41m▓▓\033[0;91m▄\033[0;37m      \033[0;97m▄\033[0;91m▄\033[0;91;41m▓▓\033[0;91m▄\033[0;37m   \033[0;91;41m▓▓▓\033[0;37m     \033[0m'
-  $'\033[0;37m \033[0;91m▄\033[0;91;41m▒\033[0;91m▀▀\033[0;91;41m▒▓▒\033[0;91m▄\033[0;37m  \033[0;91m▄\033[0;91;41m▒\033[0;91m▀▀\033[0;91;41m▒▓▒\033[0;91m▄\033[0;37m   \033[0;91m▄\033[0;91;41m▒\033[0;91m▀▀\033[0;91;41m▒▓▒\033[0;91m▄\033[0;37m  \033[0;91;41m░▒▓\033[0;37m     \033[0m'
-  $'\033[0;91;41m ░\033[0;31m▌\033[0;37m   \033[0;31m▀\033[0;91;41m▒░\033[0;37m \033[0;91;41m ░\033[0;31m▌\033[0;37m   \033[0;31m▀\033[0;91;41m▒░\033[0;37m  \033[0;91;41m ░\033[0;31m▌\033[0;37m   \033[0;31m▀\033[0;91;41m▒░\033[0;37m  \033[0;91;41m░░▒\033[0;37m     \033[0m'
-  $'\033[0;31;41m \033[0;90;41m░\033[0;37m     \033[0;31m▀\033[0;37m  \033[0;31;41m \033[0;90;41m░\033[0;37m    \033[0;31m▐\033[0;91;41m░\033[0;31;41m \033[0;31m▌\033[0;37m \033[0;31;41m \033[0;90;41m░\033[0;37m    \033[0;31m▐\033[0;91;41m░\033[0;31;41m \033[0;31m▌\033[0;37m \033[0;91;41m  ░\033[0;37m     \033[0m'
-  $'\033[0;90;41m░▒\033[0;31m▌\033[0;37m     \033[0;31m▄\033[0;37m \033[0;90;41m░▒\033[0;31m▌\033[0;37m  \033[0;31m▄\033[0;90;41m░░\033[0;31;41m \033[0;37m  \033[0;90;41m░▒\033[0;31m▌\033[0;37m  \033[0;31m▄\033[0;90;41m░░\033[0;31;41m \033[0;37m  \033[0;90;41m░ ▒\033[0;37m \033[0;31m▄\033[0;90;41m░░\033[0;31;41m \033[0m'
-  $'\033[0;37m \033[0;31m▀\033[0;90;41m▒▓\033[0;31m▄▄\033[0;90;41m▓\033[0;31m▀\033[0;37m   \033[0;31m▀\033[0;90;41m▒▓▓▓▒\033[0;31m▀\033[0;37m    \033[0;31m▀\033[0;90;41m▒▓▓▓▒\033[0;31m▀\033[0;37m   \033[0;90;41m▓▓▒▓▓▒\033[0;31m▀\033[0;37m \033[0m'
-  $'\033[0;37m   \033[0;90m▀▀▀\033[0;37m       \033[0;90m▀▀▀\033[0;37m        \033[0;90m▀▀▀\033[0;37m      \033[0;90m▀▀▀\033[0;37m    \033[0m'
-  $'\033[0;91m▀▀▀\033[0;31m▀▀██▄\033[0;37m \033[0;91m▀▀▀\033[0;31m▀▀█\033[0;90;41m░▒\033[0;37m \033[0;91m▄\033[0;91;41m▓▒\033[0;31m▀▀██▄\033[0;37m \033[0;91m▀▀\033[0;31m▀▀▀██▄\033[0;37m \033[0;91;41m▓▒░\033[0;31m▄ ▄▀▀▀▀\033[0;37m \033[0;91m▀▀▀\033[0;31m▀▀█\033[0;90;41m░▒\033[0m'
-  $'\033[0;91;41m▓▒░\033[0;31m  ███\033[0;37m \033[0;91;41m▓▒░\033[0;90m▐▌\033[0;31m██\033[0;90;41m░\033[0;37m \033[0;91m▀▀▀\033[0;31m  ███\033[0;37m \033[0;91;41m▓▒░\033[0;90m▐▌\033[0;31m███\033[0;37m \033[0;91;41m▒░\033[0;31m█ ▀  \033[0;91;41m▓▒░\033[0;37m \033[0;91;41m▓▒░\033[0;90m▐▌\033[0;31m██\033[0;90;41m░\033[0m'
-  $'\033[0;91;41m▒░\033[0;31m█▄▀▀▀ \033[0;37m \033[0;91;41m▒░\033[0;31m█▄    \033[0;37m \033[0;91;41m▒░ \033[0;31m▀▀███\033[0;37m \033[0;91;41m▒░\033[0;31m█\033[0;90m▐▌\033[0;31m██\033[0;93;41m░\033[0;37m \033[0;91;41m░\033[0;31m██\033[0;90m▐██▌\033[0;91;41m▒░\033[0;31m█\033[0;37m \033[0;91;41m▒░\033[0;31m█▄    \033[0m'
-  $'\033[0;91;41m░\033[0;31m█\033[0;93;41m░\033[0;31m  ██▄\033[0;37m \033[0;91;41m░\033[0;31m██  \033[0;91;41m▒░ \033[0;37m \033[0;91;41m░ \033[0;31m█\033[0;90m▐▌\033[0;31m██\033[0;93;41m░\033[0;37m \033[0;91;41m░\033[0;31m██\033[0;90m▐▌\033[0;31m█\033[0;93;41m░▒\033[0;37m \033[0;31m██\033[0;93;41m░\033[0;90m▐██▌\033[0;91;41m░\033[0;31m█\033[0;90;41m░\033[0;37m \033[0;91;41m░\033[0;31m██  \033[0;91;41m▒░ \033[0m'
-  $'\033[0;31m█\033[0;93;41m░▒\033[0;31m  █\033[0;93;41m░▒\033[0;37m \033[0;31m▀██▄▄███\033[0;37m \033[0;31m███  █\033[0;93;41m░▒\033[0;37m \033[0;31m███▄▄\033[0;93;41m░▒\033[0;93m▀\033[0;37m \033[0;31m█\033[0;93;41m░▒\033[0;31m    █\033[0;90;41m░▒\033[0;37m \033[0;31m▀██▄▄███\033[0m'
+# A star sits beside the title. If you haven't starred the repo, it's lit and 1 turns it off and on;
+# setup goes on by itself after a few seconds, or on Enter, and stars the repo if the star is still
+# lit. The star needs a terminal wide enough for the whole title (44 columns), as it's put in place
+# with the cursor.
+TITLE_ART=( # COOL, 26 wide and 6 rows, the star to its right; under it README, 42 wide and 5 rows: 42 wide in all
+  $'\033[0;37m▄\033[0;90;47m▒▒▒▒▒\033[0;37m \033[0;90m▄\033[0;90;47m▒▒▒▒\033[0;90m▄\033[0;37m \033[0;90m▄\033[0;90;47m▒▒▒▒\033[0;90m▄\033[0;37m \033[0;90;47m▒▒\033[0;37m   \033[0m'
+  $'\033[0;90;47m▓▓\033[0;37m  \033[0;90;47m▓▓\033[0;37m \033[0;90;47m▓▓\033[0;37m  \033[0;90;47m▓▓\033[0;37m \033[0;90;47m▓▓\033[0;37m  \033[0;90;47m▓▓\033[0;37m \033[0;90;47m▓▓\033[0;37m   \033[0m'
+  $'\033[0;90m▀▀\033[0;37m     \033[0;90m▀▀\033[0;37m \033[0;30m┘\033[0;90m▀▀\033[0;37m \033[0;90m▀▀\033[0;37m \033[0;30m┘\033[0;90m▀▀\033[0;37m \033[0;90m▀▀\033[0;30m┘┘┘\033[0m'
+  $'\033[0;97;47m▓▓\033[0;37m     \033[0;97;47m▓▓\033[0;37m  \033[0;97;47m▓▓\033[0;37m \033[0;97;47m▓▓\033[0;37m  \033[0;97;47m▓▓\033[0;37m \033[0;97;47m▓▓\033[0;37m   \033[0m'
+  $'\033[0;97;47m▒▒\033[0;37m  \033[0;97;47m▒▒\033[0;37m \033[0;97;47m▒▒\033[0;37m  \033[0;97;47m▒▒\033[0;37m \033[0;97;47m▒▒\033[0;37m  \033[0;97;47m▒▒\033[0;37m \033[0;97;47m▒▒\033[0;37m   \033[0m'
+  $'\033[0;97m▀\033[0;97;47m░░░░░\033[0;37m \033[0;97m▀\033[0;97;47m░░░░\033[0;97m▀\033[0;37m \033[0;97m▀\033[0;97;47m░░░░\033[0;97m▀\033[0;37m \033[0;97;47m░░░░░\033[0m'
+  $'\033[0;91m▄▄▄▄▄▄\033[0;37m \033[0;91m▄▄▄▄▄▄\033[0;37m \033[0;91m▄▄▄▄▄▄\033[0;37m \033[0;91m▄▄▄▄▄\033[0;37m  \033[0;91m▄▄▄▄\033[0;37m \033[0;91m▄▄\033[0;37m \033[0;91m▄▄▄▄▄▄\033[0m'
+  $'\033[0;31m▄▄▄\033[0;37m  \033[0;91m█\033[0;37m \033[0;31m▄▄▄\033[0;37m  \033[0;91m▀\033[0;37m \033[0;31m▄▄▄\033[0;37m  \033[0;91m█\033[0;37m \033[0;31m▄▄▄\033[0;37m  \033[0;91m█\033[0;37m \033[0;31m▄▄▄\033[0;37m \033[0;91m█\033[0;37m \033[0;91m█\033[0;37m \033[0;31m▄▄▄\033[0;37m  \033[0;91m▀\033[0m'
+  $'\033[0;91;41m░░▒\033[0;91m▄▄▀\033[0;37m \033[0;91;41m░░▒\033[0;91m▄\033[0;37m   \033[0;91;41m░░▒\033[0;91m▄▄█\033[0;37m \033[0;91;41m░░▒\033[0;37m  \033[0;91m█\033[0;37m \033[0;91;41m░░▒\033[0;37m \033[0;91m█\033[0;37m \033[0;91m█\033[0;37m \033[0;91;41m░░▒\033[0;91m▄\033[0;37m  \033[0m'
+  $'\033[0;91;41m▒▒▓\033[0;37m  \033[0;91m█\033[0;37m \033[0;91;41m▒▒▓\033[0;37m    \033[0;91;41m▒▒▓\033[0;37m  \033[0;91m█\033[0;37m \033[0;91;41m▒▒▓\033[0;37m  \033[0;91m█\033[0;37m \033[0;91;41m▒▒▓\033[0;37m \033[0;91m█\033[0;37m \033[0;91m█\033[0;37m \033[0;91;41m▒▒▓\033[0;37m   \033[0m'
+  $'\033[0;91;41m▓▓\033[0;91m█\033[0;37m  \033[0;91m█\033[0;37m \033[0;91;41m▓▓█\033[0;91m▄▄█\033[0;37m \033[0;91;41m▓▓\033[0;91m█\033[0;37m  \033[0;91m█\033[0;37m \033[0;91;41m▓▓\033[0;91m█▄▄▀\033[0;37m \033[0;91;41m▓▓\033[0;91m█\033[0;37m   \033[0;91m█\033[0;37m \033[0;91;41m▓▓█\033[0;91m▄▄█\033[0m'
 )
 STAR_ART=( # 7 wide, 3 rows
   '  ▗█▖  '
@@ -327,10 +496,11 @@ TAGLINE="animated cards for your GitHub profile README"
 cols=0
 $HAVE_TTY && cols="$(stty size < /dev/tty 2>/dev/null | awk '{print $2}')"
 
-# The star shows only with the full screen, wide enough for the big title it sits beside, when
-# GitHub says you haven't starred it.
-ASK_STAR=false
-if $FANCY && command -v gh >/dev/null && [ "${cols:-0}" -ge 57 ]; then
+# The star shows with the full screen, wide enough for the big title it sits beside; it asks when
+# GitHub says you haven't starred the repo.
+SHOW_STAR=false; ASK_STAR=false
+$FANCY && [ "${cols:-0}" -ge 44 ] && SHOW_STAR=true
+if $SHOW_STAR && command -v gh >/dev/null; then
   star_err="$(gh api "user/starred/$TOOL_REPO" --silent 2>&1 >/dev/null)" \
     || case "$star_err" in *"HTTP 404"*) ASK_STAR=true ;; esac
 fi
@@ -340,8 +510,8 @@ for line in "${TITLE_ART[@]}"; do
   $COLOUR || line="$(printf '%s' "$line" | sed "s/$ESC\[[0-9;]*m//g")"
   TITLE+=("$line")
 done
-STAR_TOP=2  # centred in the space right of COOL, up to README's right edge
-STAR_COL=47
+STAR_TOP=1  # centred in the space right of COOL, up to README's right edge
+STAR_COL=34
 UP=$((${#TITLE[@]} + 2))             # the banner's rows above the countdown line
 
 STAR=on
@@ -395,6 +565,8 @@ if $ASK_STAR; then
     else report failed "starring $TOOL_REPO; you can star it at https://github.com/$TOOL_REPO"
     fi
   fi
+elif $SHOW_STAR; then
+  draw_banner done # starred already: the star, lit, and nothing to ask
 else
   for line in "${TITLE[@]}"; do printf '  %s\n' "$line"; done
   printf '  %s\n' "$(paint 2 "$TAGLINE")"
@@ -523,11 +695,12 @@ cd "$WORK/repo"
 
 CARD_NAMES="summary languages contributions weekly streaks about"
 DEFAULT_CARDS="summary languages contributions weekly" # on unless cool-readme.yml says otherwise
+LIST=show # the key of the list of cards: cards before v1.5, in a file setup couldn't move
 cards_get() { # cards_get file: the cards it lists, as a flow list or a block list; empty if none
   [ -f "$1" ] || return 0
-  awk '
-    /^cards:/ {
-      line = $0; sub(/^cards:[[:space:]]*/, "", line); sub(/[[:space:]]*#.*$/, "", line)
+  awk -v key="$LIST" '
+    $0 ~ "^" key ":" {
+      line = $0; sub("^" key ":[[:space:]]*", "", line); sub(/[[:space:]]*#.*$/, "", line)
       if (line != "") { gsub(/[][,]/, " ", line); print line; exit }
       block = 1; next
     }
@@ -535,14 +708,14 @@ cards_get() { # cards_get file: the cards it lists, as a flow list or a block li
     block { exit }
     END { if (block) print out }' "$1" | tr -d "\"'" | tr -s ' \t' '  ' | sed 's/^ *//; s/ *$//'
 }
-cards_set() { # cards_set file "card card": writes "cards: [card, card]" in place of what was there
+cards_set() { # cards_set file "card card": writes "show: [card, card]" in place of what was there
   local tmp
   tmp="$(mktemp)"
-  awk -v value="[$(printf '%s' "$2" | sed 's/ /, /g')]" '
-    /^cards:/ { print "cards: " value; done = 1; skip = 1; next }
+  awk -v key="$LIST" -v value="[$(printf '%s' "$2" | sed 's/ /, /g')]" '
+    $0 ~ "^" key ":" { print key ": " value; done = 1; skip = 1; next }
     skip && /^[[:space:]]*-/ { next }
     { skip = 0; print }
-    END { if (!done) print "cards: " value }' "$1" > "$tmp" && mv "$tmp" "$1"
+    END { if (!done) print key ": " value }' "$1" > "$tmp" && mv "$tmp" "$1"
 }
 card_on() { case " $S_CARDS " in *" $1 "*) return 0 ;; esac; return 1; }
 known() { # known "card card": the known cards among them, each once, in the order given
@@ -579,11 +752,18 @@ draw_cards() { # draw_cards hint: a row per card, those that are on in green, th
   [ -z "$1" ] || printf '%s%s\n' "$INDENT" "$(paint 2 "$1")"
 }
 
+# Settings from before v1.5 move to the new layout first, so the rest of setup reads and writes that.
+MOVED=false; OLD_KEPT=false
+if [ -f "$CONFIG" ]; then
+  moved=0; migrate_config "$CONFIG" || moved=$?
+  case "$moved" in 0) MOVED=true ;; 2) OLD_KEPT=true; LIST=cards ;; esac
+fi
+
 section "Cards"
-# With every card off ("cards: []") the cards are off: out of the README, and the workflow runs
+# With every card off ("show: []") the cards are off: out of the README, and the workflow runs
 # only when you start it. The marked block stays in the README, so they come back in the same place.
 WAS_OFF=false
-[ -f "$CONFIG" ] && grep -Eq '^cards:[[:space:]]*\[[[:space:]]*\]' "$CONFIG" && WAS_OFF=true
+[ -f "$CONFIG" ] && grep -Eq "^$LIST:[[:space:]]*\[[[:space:]]*\]" "$CONFIG" && WAS_OFF=true
 cur_cards="$(known "$(cards_get "$CONFIG")")" # in the order they're listed: the README's
 $WAS_OFF || cur_cards="${cur_cards:-$DEFAULT_CARDS}"
 S_CARDS="$cur_cards"
@@ -632,8 +812,9 @@ CARDS_OFF=false
 if $CARDS_OFF; then
   # With the cards off the other settings don't matter: they're not asked, and stay as they are
   # for when the cards are back.
+  $MOVED && report updated "$CONFIG: moved to the settings layout of v1.5, the same settings"
   if [ ! -f "$CONFIG" ]; then
-    printf '# Settings: https://github.com/%s#settings\nuser: %s\ncards: []\n' "$TOOL_REPO" "$LOGIN" > "$CONFIG"
+    printf '# Settings: https://github.com/%s#settings\nuser: %s\nshow: []\n' "$TOOL_REPO" "$LOGIN" > "$CONFIG"
     report added "$CONFIG, with the cards off"
   elif [ "$S_CARDS" != "$cur_cards" ]; then
     cards_set "$CONFIG" ""
@@ -643,54 +824,69 @@ if $CARDS_OFF; then
   fi
 else
   section "Settings"
-  if [ -f "$CONFIG" ]; then
-    cur_private="$(yaml_get "$CONFIG" include.private)"; cur_orgs="$(yaml_get "$CONFIG" include.orgs)"
-    cur_style="$(yaml_get "$CONFIG" style)"; cur_color="$(yaml_get "$CONFIG" color)"; cur_matrix="$(yaml_get "$CONFIG" matrix)"
-    cur_transparent="$(yaml_get "$CONFIG" transparent)"
-    [ "$cur_color" = theme ] && cur_color=github # its name until v1.5
+  $MOVED && report updated "$CONFIG: moved to the settings layout of v1.5, the same settings"
+  if $OLD_KEPT; then
+    # Something setup can't move: the file stays as it is (the action still reads it), and only the cards change.
+    if [ "$S_CARDS" != "$cur_cards" ]; then cards_set "$CONFIG" "$S_CARDS"; report updated "cards: $(printf '%s' "$S_CARDS" | sed 's/ /, /g')"; fi
+    note "$(paint 2 "$CONFIG is in the settings layout from before v1.5, and setup couldn't move it: it still works;")"
+    note "$(paint 2 "to change the look, move it by hand: see github.com/$TOOL_REPO#settings")"
   else
-    cur_private=""; cur_orgs=""; cur_style=""; cur_color=""; cur_matrix=""; cur_transparent=""
+  if [ -f "$CONFIG" ]; then
+    cur_private="$(yaml_get "$CONFIG" count.private)"; cur_orgs="$(yaml_get "$CONFIG" count.orgs)"
+    cur_style="$(yaml_get "$CONFIG" look.style)"; cur_color="$(yaml_get "$CONFIG" look.color)"
+    cur_bg="$(yaml_get "$CONFIG" look.background | tr -d "\"'#" | tr 'A-F' 'a-f')"
+  else
+    cur_private=""; cur_orgs=""; cur_style=""; cur_color=""; cur_bg=""
   fi
-  S_PRIVATE="${cur_private:-true}"; S_ORGS="${cur_orgs:-true}"; S_STYLE="${cur_style:-classic}"
-  S_COLOR="${cur_color:-amber}"; S_MATRIX="${cur_matrix:-true}"; S_TRANSPARENT="${cur_transparent:-true}"
+  cur_bg="${cur_bg:-none}"
+  S_PRIVATE="${cur_private:-true}"; S_ORGS="${cur_orgs:-true}"; S_STYLE="${cur_style:-classic}"; S_COLOR="${cur_color:-github}"
+  S_BG_OWN=""
+  case "$cur_bg" in
+    none) S_BG=none ;;
+    "$(panel "$S_COLOR")") S_BG=dark ;;
+    *) S_BG="$cur_bg"; S_BG_OWN="$cur_bg" ;;
+  esac
   settings_screen
 
   changes=""
   change() { # change key current new label: write the setting if it changed, and note it
     if [ "$3" != "$2" ]; then
       yaml_set "$CONFIG" "$1" "$3"
-      changes="${changes:+$changes, }$4: $(row_label "${1#include.}" "$3")"
+      changes="${changes:+$changes, }$4: $(row_label "${1#*.}" "$3")"
     fi
   }
   if [ -f "$CONFIG" ]; then
-    change include.private "${cur_private:-true}" "$S_PRIVATE" "private repos"
-    change include.orgs "${cur_orgs:-true}" "$S_ORGS" "org repos"
-    change style "${cur_style:-classic}" "$S_STYLE" style
-    if [ "$S_STYLE" = oled ]; then # with classic these rows were hidden, so they keep their values
-      change color "${cur_color:-amber}" "$S_COLOR" colour
-      change matrix "${cur_matrix:-true}" "$S_MATRIX" matrix
-      change transparent "${cur_transparent:-true}" "$S_TRANSPARENT" background
+    change count.private "${cur_private:-true}" "$S_PRIVATE" "private repos"
+    change count.orgs "${cur_orgs:-true}" "$S_ORGS" "org repos"
+    change look.style "${cur_style:-classic}" "$S_STYLE" style
+    change look.color "${cur_color:-github}" "$S_COLOR" colour
+    if [ "$(bg_value)" != "$cur_bg" ]; then
+      yaml_set "$CONFIG" look.background "$(bg_value)"
+      changes="${changes:+$changes, }background: $(row_label background "$S_BG")"
     fi
     if [ "$S_CARDS" != "$cur_cards" ]; then
       cards_set "$CONFIG" "$S_CARDS"
       changes="${changes:+$changes, }cards: $(printf '%s' "$S_CARDS" | sed 's/ /, /g')"
     fi
-    if [ -n "$changes" ]; then report updated "$changes"; else report ok "$CONFIG unchanged"; fi
+    if [ -n "$changes" ]; then report updated "$changes"; elif ! $MOVED; then report ok "$CONFIG unchanged"; fi
   else
     {
       echo "# Settings: https://github.com/$TOOL_REPO#settings"
       echo "user: $LOGIN"
-      [ "$S_CARDS" = "$DEFAULT_CARDS" ] || echo "cards: [$(printf '%s' "$S_CARDS" | sed 's/ /, /g')]"
-      echo "style: $S_STYLE"
-      if [ "$S_STYLE" = oled ]; then echo "color: $S_COLOR"; echo "matrix: $S_MATRIX"; echo "transparent: $S_TRANSPARENT"; fi
-      echo "include:"
+      [ "$S_CARDS" = "$DEFAULT_CARDS" ] || echo "show: [$(printf '%s' "$S_CARDS" | sed 's/ /, /g')]"
+      echo "count:"
       echo "  private: $S_PRIVATE"
       echo "  orgs: $S_ORGS"
+      echo "look:"
+      echo "  style: $S_STYLE"
+      echo "  color: $S_COLOR"
+      echo "  background: $(bg_value)"
     } > "$CONFIG"
     report added "$CONFIG"
   fi
+  fi
   # The about card's text is yours to write: an empty section to fill in, the first time it's on.
-  if card_on about && ! grep -q '^about:' "$CONFIG"; then
+  if card_on about && $OLD_KEPT && ! grep -q '^about:' "$CONFIG"; then
     {
       echo "about:                  # the about card's text"
       echo "  headline: null        # shown large, e.g. \"Hi, I'm $LOGIN\""
@@ -698,6 +894,22 @@ else
       echo "  facts: {}             # label: text, e.g. { Focus: Rust, Based in: Lisbon }"
     } >> "$CONFIG"
     report added "an about: section to $CONFIG; write the about card's text there"
+  elif card_on about && ! $OLD_KEPT && ! awk '/^[^[:space:]#]/ { in_cards = /^cards:/ } in_cards && /^[[:space:]]+about:/ { found = 1 } END { exit !found }' "$CONFIG"; then
+    about="$(mktemp)"
+    {
+      echo "  about:                  # the about card's text"
+      echo "    headline: null        # shown large, e.g. \"Hi, I'm $LOGIN\""
+      echo "    lines: []             # a line each, e.g. [\"I build developer tools.\"]"
+      echo "    facts: {}             # label: text, e.g. { Focus: Rust, Based in: Lisbon }"
+    } > "$about"
+    tmp="$(mktemp)"
+    if grep -q '^cards:' "$CONFIG"; then
+      awk -v about="$about" '{ print } /^cards:/ { while ((getline l < about) > 0) print l }' "$CONFIG" > "$tmp"
+    else
+      { cat "$CONFIG"; echo "cards:"; cat "$about"; } > "$tmp"
+    fi
+    mv "$tmp" "$CONFIG"; rm -f "$about"
+    report added "an about section under cards: in $CONFIG; write the about card's text there"
   fi
   note "$(paint 2 "more settings (languages, titles, ...): edit $CONFIG; see github.com/$TOOL_REPO#settings")"
 fi

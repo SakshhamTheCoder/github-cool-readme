@@ -14,16 +14,16 @@ const model = compute(JSON.parse(readFileSync('.cache/snapshot.json', 'utf8')), 
 mkdirSync('out/display', { recursive: true });
 
 const looks: { color: Color; dots: boolean }[] = [];
-for (const color of ['amber', 'green', 'theme'] as Color[]) for (const dots of [true, false]) looks.push({ color, dots });
+for (const color of ['amber', 'green', 'github'] as Color[]) for (const dots of [true, false]) looks.push({ color, dots });
 
 const block = (mode: Mode, color: Color, dots: boolean) => {
-  const l: Style = { look: look(color, mode), dots, animations: true, panel: true };
+  const l: Style = { look: look(color, mode, true), dots, animations: true, background: look(color, mode, true).panel };
   const tag = `${color}-${dots ? 'dots' : 'pixels'}-${mode}`;
   const cards: [string, string, number][] = [
     ['summary', renderDisplaySummary(model.summary, l), 400],
-    ['languages', renderDisplayLanguages(model.languages, config.languages.title, l), 400],
-    ['contributions', renderDisplayContributions(model.contributions, config.contributions.title, l), 400],
-    ['weekly', renderDisplayWeekly(model.weekly, config.weekly.title, l), 400],
+    ['languages', renderDisplayLanguages(model.languages, config.cards.languages.title, l), 400],
+    ['contributions', renderDisplayContributions(model.contributions, config.cards.contributions.title, l), 400],
+    ['weekly', renderDisplayWeekly(model.weekly, config.cards.weekly.title, l), 400],
   ];
   const img = ([name, svg, width]: [string, string, number]) => {
     writeFileSync(`out/display/${name}-${tag}.svg`, svg);

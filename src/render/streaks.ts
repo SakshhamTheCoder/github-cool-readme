@@ -37,8 +37,8 @@ function bars(sd: StreakDays, start: number, lit: (i: number) => boolean, theme:
 }
 
 export function renderStreaks(tiles: Tile[], sd: StreakDays, theme: Theme, config: Config): string {
-  const title = config.streaks.title;
-  const animate = config.theme.animations;
+  const title = config.cards.streaks.title;
+  const animate = config.look.animations;
 
   // The tiles go in three columns: the streaks, the active days, the bests. The number the bars
   // highlight is in their green: the longest streak on page 1, the best month on page 2. Each is in a

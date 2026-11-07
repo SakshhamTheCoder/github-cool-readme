@@ -6,95 +6,92 @@ export type Card = (typeof CARDS)[number];
 /** The cards made when the settings don't list any; the others are there to turn on. */
 export const DEFAULT_CARDS: Card[] = ['summary', 'languages', 'contributions', 'weekly'];
 
+export const STYLES = ['classic', 'oled', 'dotmatrix'] as const;
+export type Style = (typeof STYLES)[number];
+export const COLORS = ['github', 'amber', 'green'] as const;
+export type Color = (typeof COLORS)[number];
+
 export interface Config {
   /** GitHub login. Defaults to the token's owner. */
   user: string | null;
-  /** The cards to make; the others are left out. [] turns them all off: nothing is made. */
-  cards: Card[];
-  /** classic: GitHub-style cards. oled: pinball-style dot-matrix displays. */
-  style: 'classic' | 'oled';
-  /** oled only: round LEDs; false draws square pixels. */
-  matrix: boolean;
-  /** The cards' colour: github (the default) is GitHub's own blue and greens; amber and green colour everything that highlights. */
-  color: 'amber' | 'green' | 'github';
-  /**
-   * Behind the cards: "none" lets the page show through; a colour ("#030506") is the same for every
-   * viewer, and the text takes the shades that suit it. "solid" is what the old settings meant: the
-   * style's own (classic: GitHub's page colour, following the viewer; oled: the colour's dark panel).
-   */
-  background: string;
-  /** oled only, before `background`: false for the dark panel. */
-  transparent: boolean;
-  include: {
-    /** Count private repositories in the summary and languages cards. */
+  /** The cards to make, in README order; the others are left out. [] turns them all off: nothing is made. */
+  show: Card[];
+  /** Which repositories count in the numbers. */
+  count: {
+    /** Private repositories. */
     private: boolean;
-    /** Count repositories of organizations you belong to. */
+    /** Repositories of organizations you belong to. */
     orgs: boolean;
   };
-  theme: {
-    /** classic only, before `background`: "solid" for GitHub's page colour behind the card. */
-    background: 'transparent' | 'solid';
-    border: boolean;
+  look: {
+    /** classic: GitHub-style cards. oled: displays of square pixels. dotmatrix: of round LEDs. */
+    style: Style;
+    /** github: GitHub's own blue and greens. amber, green: everything that highlights in that colour. */
+    color: Color;
     animations: boolean;
+    /**
+     * Behind the cards: "none" lets the page show through; a colour ("#030506") is the same for every
+     * viewer, and the text takes the shades that suit it. "solid" only comes from the old settings: the
+     * style's own (classic: GitHub's page colour, following the viewer; the displays: the colour's panel).
+     */
+    background: string;
+    /** classic only: a thin outline. */
+    border: boolean;
   };
-  summary: {
-    /** Shown small and uppercase on the card's header line; null for none. */
-    title: string | null;
-    /** What sits inside the activity ring: the percentage, or the GitHub logo (the percentage moves to the header). */
-    ring: 'percent' | 'github';
-  };
-  languages: {
-    title: string | null;
-    count: number;
-    exclude: string[];
-    excludeRepos: string[];
-    /** Multiplier per repo; 1 is neutral, 0 excludes it. */
-    repoWeights: Record<string, number>;
-    /** Fold the remaining languages into an "Other" entry. */
-    other: boolean;
-  };
-  contributions: {
-    title: string | null;
-    /** How many repos to show; 3 are in view at a time, the rest scroll past in a loop. */
-    count: number;
-    includeOpen: boolean;
-    /** Shown before the others, if they have a merged (or open) pull request of yours. */
-    pin: string[];
-    hide: string[];
-  };
-  weekly: {
-    title: string | null;
-  };
-  streaks: {
-    title: string | null;
-  };
-  about: {
-    title: string | null;
-    /** Shown large; null for none. */
-    headline: string | null;
-    /** Each is one line of text: they are not wrapped. More than fit scroll past, like the contributions. */
-    lines: string[];
-    /** Label -> text, one per line under the lines, scrolling with them. */
-    facts: Record<string, string>;
+  cards: {
+    summary: {
+      /** Shown small and uppercase on the card's header line; null for none. */
+      title: string | null;
+      /** What sits inside the activity ring: the percentage, or the GitHub logo (the percentage moves to the header). */
+      ring: 'percent' | 'github';
+    };
+    languages: {
+      title: string | null;
+      count: number;
+      /** Languages left out: their share is dropped. */
+      hide: string[];
+      /** Weight per repo; 1 is neutral, 0 leaves it out. */
+      repos: Record<string, number>;
+      /** Fold the remaining languages into an "Other" entry. */
+      other: boolean;
+    };
+    contributions: {
+      title: string | null;
+      /** How many repos to show; 3 are in view at a time, the rest scroll past in a loop. */
+      count: number;
+      /** Count open pull requests too, not only merged ones. */
+      open: boolean;
+      /** Shown before the others, if they have a merged (or open) pull request of yours. */
+      pin: string[];
+      hide: string[];
+    };
+    weekly: { title: string | null };
+    streaks: { title: string | null };
+    about: {
+      title: string | null;
+      /** Shown large; null for none. */
+      headline: string | null;
+      /** Each is one line of text: they are not wrapped. More than fit scroll past, like the contributions. */
+      lines: string[];
+      /** Label -> text, one per line under the lines, scrolling with them. */
+      facts: Record<string, string>;
+    };
   };
 }
 
 export const DEFAULT_CONFIG: Config = {
   user: null,
-  cards: [...DEFAULT_CARDS],
-  style: 'classic',
-  matrix: true,
-  color: 'github',
-  background: 'none',
-  transparent: true,
-  include: { private: true, orgs: true },
-  theme: { background: 'transparent', border: false, animations: true },
-  summary: { title: null, ring: 'percent' },
-  languages: { title: 'Most used languages', count: 6, exclude: [], excludeRepos: [], repoWeights: {}, other: true },
-  contributions: { title: 'Notable contributions', count: 6, includeOpen: true, pin: [], hide: [] },
-  weekly: { title: 'Weekly rhythm' },
-  streaks: { title: 'Streaks' },
-  about: { title: 'About', headline: null, lines: [], facts: {} },
+  show: [...DEFAULT_CARDS],
+  count: { private: true, orgs: true },
+  look: { style: 'classic', color: 'github', animations: true, background: 'none', border: false },
+  cards: {
+    summary: { title: null, ring: 'percent' },
+    languages: { title: 'Most used languages', count: 6, hide: [], repos: {}, other: true },
+    contributions: { title: 'Notable contributions', count: 6, open: true, pin: [], hide: [] },
+    weekly: { title: 'Weekly rhythm' },
+    streaks: { title: 'Streaks' },
+    about: { title: 'About', headline: null, lines: [], facts: {} },
+  },
 };
 
 export class ConfigError extends Error {}
@@ -102,6 +99,22 @@ export class ConfigError extends Error {}
 type Shape = { [key: string]: 'boolean' | 'string' | 'string?' | 'number' | 'string[]' | 'weights' | 'strings' | Shape };
 
 const SHAPE: Shape = {
+  user: 'string?',
+  show: 'string[]',
+  count: { private: 'boolean', orgs: 'boolean' },
+  look: { style: 'string', color: 'string', animations: 'boolean', background: 'string', border: 'boolean' },
+  cards: {
+    summary: { title: 'string?', ring: 'string' },
+    languages: { title: 'string?', count: 'number', hide: 'string[]', repos: 'weights', other: 'boolean' },
+    contributions: { title: 'string?', count: 'number', open: 'boolean', pin: 'string[]', hide: 'string[]' },
+    weekly: { title: 'string?' },
+    streaks: { title: 'string?' },
+    about: { title: 'string?', headline: 'string?', lines: 'string[]', facts: 'strings' },
+  },
+};
+
+/** The layout before v1.5, still read: everything at the top, the look spread over several keys. */
+const OLD_SHAPE: Shape = {
   user: 'string?',
   cards: 'string[]',
   style: 'string',
@@ -112,14 +125,7 @@ const SHAPE: Shape = {
   include: { private: 'boolean', orgs: 'boolean' },
   theme: { background: 'string', border: 'boolean', animations: 'boolean' },
   summary: { title: 'string?', ring: 'string' },
-  languages: {
-    title: 'string?',
-    count: 'number',
-    exclude: 'string[]',
-    excludeRepos: 'string[]',
-    repoWeights: 'weights',
-    other: 'boolean',
-  },
+  languages: { title: 'string?', count: 'number', exclude: 'string[]', excludeRepos: 'string[]', repoWeights: 'weights', other: 'boolean' },
   contributions: { title: 'string?', count: 'number', includeOpen: 'boolean', pin: 'string[]', hide: 'string[]' },
   weekly: { title: 'string?' },
   streaks: { title: 'string?' },
@@ -168,7 +174,7 @@ function merge<T>(base: T, override: unknown): T {
     const b = out[key];
     out[key] =
       typeof b === 'object' && b !== null && !Array.isArray(b) && typeof v === 'object' && v !== null && !Array.isArray(v)
-        && key !== 'repoWeights' && key !== 'facts'
+        && key !== 'repos' && key !== 'facts'
         ? merge(b, v)
         : v;
   }
@@ -179,52 +185,102 @@ function merge<T>(base: T, override: unknown): T {
  * The background as written: "none", or a colour of six (or three) hex digits, with or without "#".
  * It's read from the file's text, as YAML makes numbers of some colours: 030506 would be 30506.
  */
-function background(node: unknown): string {
+function background(node: unknown, where: string): string {
   const text = isScalar(node) ? String(node.source ?? node.value ?? '') : '';
-  if (!text) throw new ConfigError('"background" is empty: write none, or a colour without #, like background: 030506');
+  if (!text) throw new ConfigError(`"${where}" is empty: write none, or a colour without #, like ${where.split('.').pop()}: 030506`);
   const value = text.trim().toLowerCase().replace(/^#/, '');
   if (value === 'none') return 'none';
   if (/^([0-9a-f]{3}){1,2}$/.test(value)) return `#${value}`;
-  throw new ConfigError(`"background" must be none or a colour like 030506, not "${text}"`);
+  throw new ConfigError(`"${where}" must be none or a colour like 030506, not "${text}"`);
 }
+
+type Raw = Record<string, unknown>;
+const isMap = (v: unknown): v is Raw => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** Settings in the layout before v1.5, moved to the new one: the same cards, looking the same. */
+function fromOld(o: Raw): Raw {
+  check(o, OLD_SHAPE, '');
+  const theme = (o.theme ?? {}) as Raw;
+  const style = o.style ?? 'classic';
+  if (style !== 'classic' && style !== 'oled') throw new ConfigError('"style" must be "classic" or "oled"');
+  if (theme.background !== undefined && theme.background !== 'transparent' && theme.background !== 'solid') {
+    throw new ConfigError('"theme.background" must be "transparent" or "solid"');
+  }
+  const look: Raw = {
+    // oled was round LEDs unless matrix was false: now the dotmatrix style, and oled is the square pixels.
+    style: style === 'oled' ? (o.matrix === false ? 'oled' : 'dotmatrix') : 'classic',
+    // The displays were amber unless set; color: theme is github's old name.
+    color: o.color === 'theme' ? 'github' : (o.color ?? (style === 'oled' ? 'amber' : 'github')),
+    // Before background: the displays' dark panel unless transparent, GitHub's page colour behind classic if solid.
+    background: o.background ?? ((style === 'oled' ? o.transparent === false : theme.background === 'solid') ? 'solid' : 'none'),
+  };
+  if (theme.animations !== undefined) look.animations = theme.animations;
+  if (theme.border !== undefined) look.border = theme.border;
+  const out: Raw = { look };
+  if ('user' in o) out.user = o.user;
+  if ('cards' in o) out.show = o.cards;
+  if ('include' in o) out.count = o.include;
+  const cards: Raw = {};
+  for (const card of ['summary', 'weekly', 'streaks', 'about']) if (card in o) cards[card] = o[card];
+  if (isMap(o.languages)) {
+    const { exclude, excludeRepos, repoWeights, ...rest } = o.languages;
+    // Left out was the same as a weight of 0.
+    const repos = { ...((repoWeights as Raw) ?? {}), ...Object.fromEntries(((excludeRepos as string[]) ?? []).map((r) => [r, 0])) };
+    cards.languages = { ...rest, ...(exclude ? { hide: exclude } : {}), ...(excludeRepos || repoWeights ? { repos } : {}) };
+  }
+  if (isMap(o.contributions)) {
+    const { includeOpen, ...rest } = o.contributions;
+    cards.contributions = { ...rest, ...(includeOpen !== undefined ? { open: includeOpen } : {}) };
+  }
+  if (Object.keys(cards).length) out.cards = cards;
+  return out;
+}
+
+const OLD_KEYS = ['style', 'matrix', 'color', 'background', 'transparent', 'include', 'theme', 'summary', 'languages', 'contributions', 'weekly', 'streaks', 'about'];
+const NEW_KEYS = ['show', 'count', 'look'];
+
+/** Settings files in the layout before v1.5; they still work, and setup moves them to the new one. */
+const OLD_LAYOUT = new WeakSet<Config>();
+export const usesOldLayout = (config: Config): boolean => OLD_LAYOUT.has(config);
 
 export function parseConfig(text: string): Config {
   const doc = parseDocument(text);
   if (doc.errors.length) throw doc.errors[0];
-  const raw: unknown = doc.toJS() ?? {};
-  if (typeof raw === 'object' && raw !== null && 'background' in raw) {
-    (raw as Record<string, unknown>).background = background(doc.get('background', true));
+  const parsed: unknown = doc.toJS() ?? {};
+  if (!isMap(parsed)) throw new ConfigError('config must be a mapping');
+  let raw: Raw = parsed;
+
+  // The old layout had everything at the top, and the cards as a list.
+  const old = OLD_KEYS.filter((k) => k in raw).concat(Array.isArray(raw.cards) ? ['cards'] : []);
+  const current = NEW_KEYS.filter((k) => k in raw).concat(isMap(raw.cards) ? ['cards'] : []);
+  if (old.length && current.length) {
+    throw new ConfigError(`"${current[0]}" is in the new layout of the settings, "${old[0]}" in the old one: use the new one (run setup again to move them)`);
   }
+  if (old.length) {
+    if ('background' in raw) raw.background = background(doc.get('background', true), 'background');
+    raw = fromOld(raw);
+  } else if (isMap(raw.look) && 'background' in raw.look) {
+    (raw.look as Raw).background = background(doc.getIn(['look', 'background'], true), 'look.background');
+  }
+
   check(raw, SHAPE, '');
   const config = merge(DEFAULT_CONFIG, raw);
-  // The settings before `background`: a dark panel for oled, GitHub's page colour for classic.
-  const r = raw as { background?: unknown; color?: unknown; transparent?: unknown; theme?: { background?: unknown } };
-  if (r.background === undefined) {
-    const solid = config.style === 'oled' ? r.transparent === false : r.theme?.background === 'solid';
-    config.background = solid ? 'solid' : 'none';
+  if (!(STYLES as readonly string[]).includes(config.look.style)) {
+    throw new ConfigError(`"look.style" must be ${STYLES.map((s) => `"${s}"`).join(', ').replace(/, ([^,]*)$/, ' or $1')}`);
   }
-  if (config.theme.background !== 'transparent' && config.theme.background !== 'solid') {
-    throw new ConfigError('"theme.background" must be "transparent" or "solid"');
+  if (!(COLORS as readonly string[]).includes(config.look.color)) {
+    throw new ConfigError('"look.color" must be "github", "amber" or "green"');
   }
-  if (config.style !== 'classic' && config.style !== 'oled') {
-    throw new ConfigError('"style" must be "classic" or "oled"');
-  }
-  if ((config.color as string) === 'theme') config.color = 'github'; // its name until v1.5
-  // github for every style; but OLED cards were amber before `color` reached the classic ones, so
-  // settings that leave it out keep that (until setup rewrites them in the new layout, with color set).
-  if (r.color === undefined) config.color = config.style === 'oled' ? 'amber' : 'github';
-  if (!['amber', 'green', 'github'].includes(config.color)) {
-    throw new ConfigError('"color" must be "amber", "green" or "github"');
-  }
-  for (const card of config.cards) {
+  for (const card of config.show) {
     if (!(CARDS as readonly string[]).includes(card)) {
-      throw new ConfigError(`"cards" has "${card}"; the cards are ${CARDS.join(', ')}`);
+      throw new ConfigError(`"show" has "${card}"; the cards are ${CARDS.join(', ')}`);
     }
   }
-  if (new Set(config.cards).size !== config.cards.length) throw new ConfigError('"cards" names a card twice');
-  if (config.summary.ring !== 'percent' && config.summary.ring !== 'github') {
-    throw new ConfigError('"summary.ring" must be "percent" or "github"');
+  if (new Set(config.show).size !== config.show.length) throw new ConfigError('"show" names a card twice');
+  if (config.cards.summary.ring !== 'percent' && config.cards.summary.ring !== 'github') {
+    throw new ConfigError('"cards.summary.ring" must be "percent" or "github"');
   }
+  if (old.length) OLD_LAYOUT.add(config);
   return config;
 }
 

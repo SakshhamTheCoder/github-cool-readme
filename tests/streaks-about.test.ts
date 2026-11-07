@@ -10,7 +10,7 @@ import { fixture } from './fixtures/snapshot.ts';
 
 const render = (card: 'streaks' | 'about', patch: (c: Config) => void = () => {}) => {
   const c = structuredClone(DEFAULT_CONFIG);
-  c.cards = [card];
+  c.show = [card];
   patch(c);
   return renderAll(compute(fixture(), c), c)[`${card}-light.svg`];
 };
@@ -69,7 +69,7 @@ describe('streaks', () => {
     expect(svg).toContain('@keyframes cols');
     expect(svg).toContain('class="page1"');
     expect(svg).toContain('class="page2"');
-    const still = render('streaks', (c) => (c.theme.animations = false));
+    const still = render('streaks', (c) => (c.look.animations = false));
     expect(still).not.toContain('class="cols"');
     expect(still).not.toContain('page2');
     expect(still.match(/fill="#2da44e"/g)?.length).toBe(1); // the longest streak's bars, in green
@@ -88,31 +88,31 @@ describe('streaks', () => {
 describe('about', () => {
   it('reads its text from the settings, keeping the order of the facts', () => {
     const c = parseConfig('cards: [about]\nabout:\n  headline: Hello\n  lines: [One, Two]\n  facts: { Focus: Tools, Stack: Rust }\n');
-    expect(c.about.headline).toBe('Hello');
-    expect(c.about.lines).toEqual(['One', 'Two']);
-    expect(Object.keys(c.about.facts)).toEqual(['Focus', 'Stack']);
+    expect(c.cards.about.headline).toBe('Hello');
+    expect(c.cards.about.lines).toEqual(['One', 'Two']);
+    expect(Object.keys(c.cards.about.facts)).toEqual(['Focus', 'Stack']);
     expect(() => parseConfig('about:\n  facts: { Focus: 3 }\n')).toThrow('"about.facts" must be a mapping of label to text');
   });
 
   it('shows the headline, the lines and the facts on a 400 by 195 card', () => {
-    const svg = render('about', (c) => { c.about.headline = 'Hello'; c.about.lines = ['Line one']; c.about.facts = { Focus: 'Tools' }; });
+    const svg = render('about', (c) => { c.cards.about.headline = 'Hello'; c.cards.about.lines = ['Line one']; c.cards.about.facts = { Focus: 'Tools' }; });
     for (const text of ['Hello', 'Line one', 'FOCUS', 'Tools']) expect(svg).toContain(text);
     expect(svg).toMatch(/<svg [^>]*width="400" height="195"/);
   });
 
   it('scrolls the lines and facts that don\'t fit a page at a time, the headline staying', () => {
-    const many = (c: Config) => { c.about.headline = 'Hi'; c.about.lines = ['1', '2', '3', '4', '5', '6', '7']; };
+    const many = (c: Config) => { c.cards.about.headline = 'Hi'; c.cards.about.lines = ['1', '2', '3', '4', '5', '6', '7']; };
     const svg = render('about', many);
     expect(svg).toContain('>7<');
     // 4 rows in view under a headline: two pages, the second moved up so it's full (rows 4-7)
     expect(svg).toMatch(/@keyframes scroll \{ 0.00%, [\d.]+% \{ transform: translateY\(-0px\); \} [\d.]+%, [\d.]+% \{ transform: translateY\(-66px\); \} 100%/);
     expect(svg).toMatch(/<desc[^>]*>Hi 1 2 3 4 5 6 7</);
-    expect(render('about', (c) => { c.about.lines = ['1', '2', '3']; })).not.toContain('@keyframes scroll');
-    expect(render('about', (c) => { many(c); c.theme.animations = false; })).not.toContain('class="scroll"');
+    expect(render('about', (c) => { c.cards.about.lines = ['1', '2', '3']; })).not.toContain('@keyframes scroll');
+    expect(render('about', (c) => { many(c); c.look.animations = false; })).not.toContain('class="scroll"');
   });
 
   it('escapes the text, and says so when empty', () => {
-    expect(render('about', (c) => (c.about.lines = ['a <b> & c']))).toContain('a &#60;b&#62; &#38; c');
+    expect(render('about', (c) => (c.cards.about.lines = ['a <b> & c']))).toContain('a &#60;b&#62; &#38; c');
     const empty = render('about');
     expect(empty).toContain('Nothing here yet');
     expect(empty).not.toMatch(/NaN|undefined|null|Infinity/);
@@ -122,7 +122,7 @@ describe('about', () => {
 describe('the new cards', () => {
   it('are off unless listed', () => {
     expect(CARDS).toEqual(expect.arrayContaining(['streaks', 'about']));
-    expect(DEFAULT_CONFIG.cards).toEqual(['summary', 'languages', 'contributions', 'weekly']);
+    expect(DEFAULT_CONFIG.show).toEqual(['summary', 'languages', 'contributions', 'weekly']);
     expect(Object.keys(renderAll(compute(fixture(), DEFAULT_CONFIG), DEFAULT_CONFIG))).not.toContain('streaks-light.svg');
   });
 

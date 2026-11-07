@@ -1,14 +1,20 @@
 user: pedrocatalao
-include:
+count:
   private: true
   orgs: true
-languages:
-  count: 6
-  exclude: [Batchfile, PHP, HCL, Jinja, JavaScript]
-  excludeRepos: [juca]
-  other: false
-contributions:
-  includeOpen: true
-  hide: [anuraghazra/github-readme-stats]
-summary:
-  ring: github
+look:
+  style: classic
+  color: github
+  background: none
+cards:
+  languages:
+    count: 6
+    hide: [Batchfile, PHP, HCL, Jinja, JavaScript]
+    repos:
+      juca: 0
+    other: false
+  contributions:
+    open: true
+    hide: [anuraghazra/github-readme-stats]
+  summary:
+    ring: github

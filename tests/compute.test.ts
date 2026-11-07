@@ -29,18 +29,18 @@ describe('summary', () => {
     const s = fixture();
     s.last12Months.totals.commits += 7; // contributions in repos the per-repo lists left out
     expect(row(compute(s, config()), 'commits')[0]).toBe(167);
-    expect(row(compute(s, config((c) => (c.include.orgs = false))), 'commits')[0]).toBe(60);
+    expect(row(compute(s, config((c) => (c.count.orgs = false))), 'commits')[0]).toBe(60);
   });
 
   it('leaves out private repos when asked', () => {
-    const m = compute(fixture(), config((c) => (c.include.private = false)));
+    const m = compute(fixture(), config((c) => (c.count.private = false)));
     expect(row(m, 'commits')).toEqual([10, 100]);
     expect(row(m, 'pullRequests')).toEqual([3, 6]);
     expect(m.summary.stars).toEqual({ last12Months: 20, allTime: 120 });
   });
 
   it('leaves out organization repos when asked', () => {
-    const m = compute(fixture(), config((c) => (c.include.orgs = false)));
+    const m = compute(fixture(), config((c) => (c.count.orgs = false)));
     expect(row(m, 'commits')).toEqual([60, 150]);
     expect(row(m, 'issues')).toEqual([0, 1]);
     expect(row(m, 'reviews')).toEqual([0, 0]);
@@ -55,27 +55,27 @@ describe('languages', () => {
   });
 
   it('drops an excluded language, without handing its share to the repo\'s other languages', () => {
-    const m = compute(fixture(), config((c) => (c.languages.exclude = ['batchfile'])));
+    const m = compute(fixture(), config((c) => (c.cards.languages.hide = ['batchfile'])));
     expect(shares(m)).toEqual({ Ruby: 44.4, C: 33.3, Rust: 18.5, Python: 3.7 });
   });
 
   it('applies repo weights, where 0 leaves a repo out', () => {
-    const m = compute(fixture(), config((c) => (c.languages.repoWeights = { 'acme/platform': 0, game: 2 })));
+    const m = compute(fixture(), config((c) => (c.cards.languages.repos = { 'acme/platform': 0, game: 2 })));
     expect(shares(m)).toEqual({ C: 72, Rust: 20, Python: 8 });
   });
 
   it('excludes repos, by short name for your own', () => {
-    const m = compute(fixture(), config((c) => (c.languages.excludeRepos = ['secret'])));
+    const m = compute(fixture(), config((c) => (c.cards.languages.repos = { secret: 0 })));
     expect(m.languages.map((l) => l.name)).not.toContain('Rust');
   });
 
   it('shares 100% between the languages shown when Other is off', () => {
-    const m = compute(fixture(), config((c) => { c.languages.count = 2; c.languages.other = false; }));
+    const m = compute(fixture(), config((c) => { c.cards.languages.count = 2; c.cards.languages.other = false; }));
     expect(shares(m)).toEqual({ Ruby: 57.1, C: 42.9 });
   });
 
   it('folds the rest into Other', () => {
-    const m = compute(fixture(), config((c) => (c.languages.count = 2)));
+    const m = compute(fixture(), config((c) => (c.cards.languages.count = 2)));
     expect(shares(m)).toEqual({ Ruby: 34.3, C: 25.7, Other: 40 });
     expect(m.languages.at(-1)!.color).toBeNull();
   });
@@ -107,26 +107,26 @@ describe('notable contributions', () => {
   });
 
   it('can leave open pull requests out', () => {
-    expect(repos(compute(fixture(), config((c) => (c.contributions.includeOpen = false))))).toEqual(['big/project', 'tiny/project']);
+    expect(repos(compute(fixture(), config((c) => (c.cards.contributions.open = false))))).toEqual(['big/project', 'tiny/project']);
   });
 
   it('never shows pull requests closed without merging, even when pinned', () => {
-    const m = compute(fixture(), config((c) => (c.contributions.pin = ['old/archive'])));
+    const m = compute(fixture(), config((c) => (c.cards.contributions.pin = ['old/archive'])));
     expect(repos(m)).toEqual(['big/project', 'mid/project', 'tiny/project']);
-    expect(m.notes).toEqual(['contributions.pin: "old/archive" has no merged or open pull requests of yours, so it is not shown']);
+    expect(m.notes).toEqual(['cards.contributions.pin: "old/archive" has no merged or open pull requests of yours, so it is not shown']);
   });
 
   it('gives pinned repos their place before the most starred', () => {
-    const m = compute(fixture(), config((c) => { c.contributions.pin = ['tiny/project']; c.contributions.count = 1; }));
+    const m = compute(fixture(), config((c) => { c.cards.contributions.pin = ['tiny/project']; c.cards.contributions.count = 1; }));
     expect(repos(m)).toEqual(['tiny/project']);
   });
 
   it('hides repos', () => {
-    expect(repos(compute(fixture(), config((c) => (c.contributions.hide = ['BIG/Project']))))).toEqual(['mid/project', 'tiny/project']);
+    expect(repos(compute(fixture(), config((c) => (c.cards.contributions.hide = ['BIG/Project']))))).toEqual(['mid/project', 'tiny/project']);
   });
 
   it('notes config entries that match nothing', () => {
-    const m = compute(fixture(), config((c) => (c.contributions.pin = ['nobody/nothing'])));
-    expect(m.notes).toEqual(['contributions.pin: "nobody/nothing" matched no repository you contributed to']);
+    const m = compute(fixture(), config((c) => (c.cards.contributions.pin = ['nobody/nothing'])));
+    expect(m.notes).toEqual(['cards.contributions.pin: "nobody/nothing" matched no repository you contributed to']);
   });
 });

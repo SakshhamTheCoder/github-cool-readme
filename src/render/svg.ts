@@ -166,8 +166,8 @@ export function surfaceOf(colour: string): Mode {
 
 export function card(o: CardOptions): string {
   const { theme: t, config } = o;
-  const bg = config.background === 'none' ? 'none' : config.background === 'solid' ? t.background : config.background;
-  const stroke = config.theme.border ? t.border : 'none';
+  const bg = config.look.background === 'none' ? 'none' : config.look.background === 'solid' ? t.background : config.look.background;
+  const stroke = config.look.border ? t.border : 'none';
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${o.width}" height="${o.height}" viewBox="0 0 ${o.width} ${o.height}" fill="none" role="img" aria-labelledby="title desc">
 <title id="title">${esc(o.title)}</title>
 <desc id="desc">${esc(o.desc)}</desc>
@@ -179,7 +179,7 @@ export function card(o: CardOptions): string {
   .col { font-size: ${CAPS}px; fill: ${t.muted}; letter-spacing: 0.04em; }
   .secondary { fill: ${t.secondary}; }
   .muted { fill: ${t.muted}; }
-  .icon { fill: ${t.secondary}; }${config.theme.animations ? ANIMATIONS : ''}${o.css ?? ''}
+  .icon { fill: ${t.secondary}; }${config.look.animations ? ANIMATIONS : ''}${o.css ?? ''}
 </style>
 <rect x="0.5" y="0.5" width="${o.width - 1}" height="${o.height - 1}" rx="6" fill="${bg}" stroke="${stroke}"/>
 ${o.body}
@@ -212,6 +212,6 @@ export function scrolling(name: string, offsets: number[]): string {
 
 /** Staggered fade-in wrapper; the transform lives on an outer group so CSS can animate the inner one. */
 export function fadeIn(x: number, y: number, index: number, content: string, config: Config, step = 90): string {
-  const delay = config.theme.animations ? ` style="animation-delay: ${200 + index * step}ms"` : '';
+  const delay = config.look.animations ? ` style="animation-delay: ${200 + index * step}ms"` : '';
   return `<g transform="translate(${x} ${y})"><g class="fade"${delay}>${content}</g></g>`;
 }

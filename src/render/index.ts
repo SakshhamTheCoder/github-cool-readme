@@ -16,30 +16,30 @@ import { surfaceOf, themeFor, type Mode } from './svg.ts';
 import { renderWeekly } from './weekly.ts';
 
 /**
- * File name -> SVG, one light and one dark variant of each card in `config.cards`, in the usual
- * card order. The same names for both styles.
+ * File name -> SVG, one light and one dark variant of each card in `config.show`, in the usual
+ * card order. The same names for every style.
  */
 export function renderAll(model: Model, config: Config): Record<string, string> {
   const files: Record<string, string> = {};
-  const bg = config.background;
+  const bg = config.look.background;
   const colour = bg.startsWith('#') ? bg : null;
   for (const viewer of ['light', 'dark'] as Mode[]) {
     // On a colour of your own, every viewer sees the same card, in the shades that suit the colour.
     const mode = colour ? surfaceOf(colour) : viewer;
-    const theme = themeFor(mode, config.color);
+    const theme = themeFor(mode, config.look.color);
     let render: Record<Card, () => string>;
-    if (config.style === 'oled') {
+    if (config.look.style !== 'classic') {
       // Amber and green go darker only where they'd be on something light: no panel on a light page, or a light colour.
-      const l = look(config.color, mode, bg === 'solid' || (colour !== null && mode === 'dark'));
+      const l = look(config.look.color, mode, bg === 'solid' || (colour !== null && mode === 'dark'));
       const background = bg === 'none' ? null : bg === 'solid' ? l.panel : colour;
-      const style: Style = { look: l, dots: config.matrix, animations: config.theme.animations, background };
+      const style: Style = { look: l, dots: config.look.style === 'dotmatrix', animations: config.look.animations, background };
       render = {
         summary: () => renderDisplaySummary(model.summary, style),
-        languages: () => renderDisplayLanguages(model.languages, config.languages.title, style),
-        contributions: () => renderDisplayContributions(model.contributions, config.contributions.title, style),
-        weekly: () => renderDisplayWeekly(model.weekly, config.weekly.title, style),
-        streaks: () => renderDisplayStreaks(model.streaks, model.streakDays, config.streaks.title, style),
-        about: () => renderDisplayAbout(config.about, style),
+        languages: () => renderDisplayLanguages(model.languages, config.cards.languages.title, style),
+        contributions: () => renderDisplayContributions(model.contributions, config.cards.contributions.title, style),
+        weekly: () => renderDisplayWeekly(model.weekly, config.cards.weekly.title, style),
+        streaks: () => renderDisplayStreaks(model.streaks, model.streakDays, config.cards.streaks.title, style),
+        about: () => renderDisplayAbout(config.cards.about, style),
       };
     } else {
       render = {
@@ -51,7 +51,7 @@ export function renderAll(model: Model, config: Config): Record<string, string> 
         about: () => renderAbout(theme, config),
       };
     }
-    for (const card of CARDS) if (config.cards.includes(card)) files[`${card}-${viewer}.svg`] = render[card]();
+    for (const card of CARDS) if (config.show.includes(card)) files[`${card}-${viewer}.svg`] = render[card]();
   }
   return files;
 }

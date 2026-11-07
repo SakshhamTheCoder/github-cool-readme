@@ -6,7 +6,7 @@ export type CountKey = 'commits' | 'pullRequests' | 'reviews' | 'issues';
 
 export interface SummaryModel {
   title: string | null;
-  ring: Config['summary']['ring'];
+  ring: Config['cards']['summary']['ring'];
   rows: { key: CountKey; label: string; last12Months: number; allTime: number }[];
   /** Stars received in the last 12 months, and the current total. */
   stars: { last12Months: number; allTime: number };
@@ -61,7 +61,7 @@ const FIELDS = ['commits', 'pullRequests', 'reviews', 'issues'] as const;
 export function compute(snapshot: Snapshot, config: Config): Model {
   const notes: string[] = [];
   const login = snapshot.user.login.toLowerCase();
-  const { include } = config;
+  const include = config.count;
 
   const included = (key: string): boolean => {
     const repo = snapshot.repos[key];
@@ -100,8 +100,8 @@ export function compute(snapshot: Snapshot, config: Config): Model {
   const totalDays = snapshot.calendar.length;
 
   const summary: SummaryModel = {
-    title: config.summary.title,
-    ring: config.summary.ring,
+    title: config.cards.summary.title,
+    ring: config.cards.summary.ring,
     rows: (Object.keys(ROW_LABELS) as CountKey[]).map((key) => ({
       key,
       label: ROW_LABELS[key],
@@ -125,12 +125,11 @@ export function compute(snapshot: Snapshot, config: Config): Model {
   };
 
   // Languages: each repo's language mix, weighted by your commits there (all time).
-  const lc = config.languages;
-  const excludedLangs = new Set(lc.exclude.map((l) => l.toLowerCase()));
-  const excludedRepos = known(lc.excludeRepos, 'languages.excludeRepos');
-  const weights = new Map<string, number>();
-  for (const [ref, w] of Object.entries(lc.repoWeights)) weights.set(repoKey(ref, login), w);
-  known(Object.keys(lc.repoWeights), 'languages.repoWeights');
+  const lc = config.cards.languages;
+  const excludedLangs = new Set(lc.hide.map((l) => l.toLowerCase()));
+  const weights = new Map<string, number>(); // 0 leaves a repo out
+  for (const [ref, w] of Object.entries(lc.repos)) weights.set(repoKey(ref, login), w);
+  known(Object.keys(lc.repos), 'cards.languages.repos');
 
   const commitsByRepo = new Map<string, number>();
   for (const w of snapshot.allTime) {
@@ -141,7 +140,7 @@ export function compute(snapshot: Snapshot, config: Config): Model {
 
   const scores = new Map<string, { color: string | null; score: number }>();
   for (const [key, commits] of commitsByRepo) {
-    if (!included(key) || excludedRepos.has(key)) continue;
+    if (!included(key)) continue;
     const weight = weights.get(key) ?? 1;
     if (weight === 0) continue;
     // An excluded language's share of the repo is dropped, not handed to the repo's other languages.
@@ -170,12 +169,12 @@ export function compute(snapshot: Snapshot, config: Config): Model {
 
   // Notable contributions: merged (and optionally open) pull requests to public repos of other
   // people and organizations. Pull requests closed without merging never count.
-  const cc = config.contributions;
-  const pins = known(cc.pin, 'contributions.pin');
-  const hidden = known(cc.hide, 'contributions.hide');
+  const cc = config.cards.contributions;
+  const pins = known(cc.pin, 'cards.contributions.pin');
+  const hidden = known(cc.hide, 'cards.contributions.hide');
   const outside = snapshot.pullRequests.filter((a) => {
     if (hidden.has(a.repo)) return false;
-    if (a.state !== 'MERGED' && !(a.state === 'OPEN' && cc.includeOpen)) return false;
+    if (a.state !== 'MERGED' && !(a.state === 'OPEN' && cc.open)) return false;
     const r = snapshot.repos[a.repo];
     const owner = r.owner.toLowerCase();
     return !r.isPrivate && owner !== login && !snapshot.orgs.includes(owner);
@@ -212,12 +211,12 @@ export function compute(snapshot: Snapshot, config: Config): Model {
     .sort((a, b) => b.stars - a.stars);
   for (const key of pins) {
     if (snapshot.repos[key] && !grouped.has(key)) {
-      notes.push(`contributions.pin: "${key}" has no merged${cc.includeOpen ? ' or open' : ''} pull requests of yours, so it is not shown`);
+      notes.push(`cards.contributions.pin: "${key}" has no merged${cc.open ? ' or open' : ''} pull requests of yours, so it is not shown`);
     }
   }
 
   // Weekly rhythm: the contribution calendar summed per weekday. Like the active-days ring, it
-  // follows the calendar, which the include settings cannot filter.
+  // follows the calendar, which the count settings cannot filter.
   const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const weekly: WeekdayItem[] = DAYS.map((day) => ({ day, count: 0 }));
   for (const d of snapshot.calendar) {
@@ -228,8 +227,8 @@ export function compute(snapshot: Snapshot, config: Config): Model {
   // Streaks: every day since you joined. Like the weekly rhythm, the calendar can't be filtered.
   const streaks = streakStats(snapshot.allDays);
   const days = streakDays(snapshot.allDays);
-  if (filtering && config.cards.includes('streaks')) {
-    notes.push('the include settings cannot filter the contribution calendar, so the streaks card still counts private and organization work');
+  if (filtering && config.show.includes('streaks')) {
+    notes.push('the count settings cannot filter the contribution calendar, so the streaks card still counts private and organization work');
   }
 
   return { summary, languages, contributions, weekly, streaks, streakDays: days, notes };

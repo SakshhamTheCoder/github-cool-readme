@@ -11,7 +11,7 @@ const LINE = 22;
 const BOTTOM = CARD_HEIGHT - 14; // the last baseline that fits
 
 export function renderAbout(theme: Theme, config: Config): string {
-  const { title, headline, lines, facts } = config.about;
+  const { title, headline, lines, facts } = config.cards.about;
   const header = title ? headerText(title, PAD) : '';
   const entries = Object.entries(facts);
   if (!headline && !lines.length && !entries.length) {
@@ -40,7 +40,7 @@ export function renderAbout(theme: Theme, config: Config): string {
 
   // As many rows as fit are in view; with more, they scroll up a page at a time, then back to the top.
   const visible = Math.floor((BOTTOM - top) / LINE) + 1;
-  const scrolls = rows.length > visible && config.theme.animations;
+  const scrolls = rows.length > visible && config.look.animations;
   const view = `<clipPath id="about"><rect x="0" y="${top - 16}" width="${WIDTH}" height="${visible * LINE}"/></clipPath>`;
 
   return card({

@@ -12,7 +12,7 @@ Two more you can turn on (setup lists them, off):
 - **Streaks** (`streaks`): your current and longest streak, active days, and your best day and month, from your whole contribution history.
 - **About** (`about`): a headline, a few lines and a few facts of your own, from the settings. A card can't hold working links, so put those under it.
 
-Private and organization work is counted (it can be turned off). Only totals appear on the cards; private repo names never do. The cards come in two styles.
+Private and organization work is counted (it can be turned off). Only totals appear on the cards; private repo names never do. The cards come in three styles.
 
 ### Quick Setup
 ```bash
@@ -26,10 +26,14 @@ For details see [Setup](#setup).
 GitHub's own look: its fonts, colours and icons on a transparent background, following the viewer's light or dark theme. The default.
 
 ```yaml
-style: classic
-summary:
-  ring: github          # the GitHub logo in the ring; leave out for the percentage
+look:
+  style: classic
+cards:
+  summary:
+    ring: github        # the GitHub logo in the ring; leave out for the percentage
 ```
+
+With `color: amber` or `green` under `look`, the ring, the weekly bars and the streaks highlight take that colour.
 
 <p align="center">
 <picture>
@@ -52,79 +56,77 @@ summary:
 </picture>
 </p>
 
-## OLED cards
+## Dot matrix and OLED cards
 
-The same numbers as pinball-style dot-matrix displays: big readable text in a dot font, one item at a time with pinball transitions, in amber, green or GitHub's colours, as round LEDs or square pixels. Set `style: oled`. The examples also use `summary.ring: github`, for the GitHub logo in the ring.
+The same numbers as pinball-style displays: big readable text in a dot font, one item at a time with pinball transitions. `style: dotmatrix` draws them in round LEDs over a faint grid of unlit ones; `style: oled` in square pixels. Their colour is GitHub's (the default), amber or green, on a transparent background or a colour of your own. The examples also have the GitHub logo in the summary's ring (`ring: github`).
 
-**Amber**: the orange of a plasma display. The default.
+**Amber**, on a dark panel: the orange of a plasma display.
 
 ```yaml
-style: oled
-color: amber
+look:
+  style: dotmatrix
+  color: amber
+  background: 0d0b07    # a colour of your own, without #; leave out for none
+```
+
+<p align="center">
+<img src="examples/dotmatrix-cards/summary.svg" width="400" alt="GitHub stats">
+<img src="examples/dotmatrix-cards/languages.svg" width="400" alt="Most used languages">
+</p>
+<p align="center">
+<img src="examples/dotmatrix-cards/contributions.svg" width="400" alt="Notable contributions">
+<img src="examples/dotmatrix-cards/weekly.svg" width="400" alt="Weekly rhythm">
+</p>
+
+**GitHub**: GitHub's own text and blue, on a transparent background, following the viewer's light or dark theme.
+
+```yaml
+look:
+  style: dotmatrix
 ```
 
 <p align="center">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="examples/oled-cards/summary-dark.svg">
-  <img src="examples/oled-cards/summary-light.svg" width="400" alt="GitHub stats">
+  <source media="(prefers-color-scheme: dark)" srcset="examples/dotmatrix-cards/github/summary-dark.svg">
+  <img src="examples/dotmatrix-cards/github/summary-light.svg" width="400" alt="GitHub summary">
 </picture>
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="examples/oled-cards/languages-dark.svg">
-  <img src="examples/oled-cards/languages-light.svg" width="400" alt="Most used languages">
-</picture>
-</p>
-<p align="center">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="examples/oled-cards/contributions-dark.svg">
-  <img src="examples/oled-cards/contributions-light.svg" width="400" alt="Notable contributions">
-</picture>
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="examples/oled-cards/weekly-dark.svg">
-  <img src="examples/oled-cards/weekly-light.svg" width="400" alt="Weekly rhythm">
+  <source media="(prefers-color-scheme: dark)" srcset="examples/dotmatrix-cards/github/languages-dark.svg">
+  <img src="examples/dotmatrix-cards/github/languages-light.svg" width="400" alt="GitHub languages">
 </picture>
 </p>
 
-**Green**: the same in green.
+**Green**, on a transparent background: bright on a dark page, darker on a light one.
 
 ```yaml
-style: oled
-color: green
-```
-
-<p align="center">
-<img src="examples/oled-cards/green/summary.svg" width="400" alt="Green summary">
-<img src="examples/oled-cards/green/languages.svg" width="400" alt="Green languages">
-</p>
-
-**GitHub**: GitHub's own text and blue, on a transparent background; follows the viewer's light or dark theme.
-
-```yaml
-style: oled
-color: github
+look:
+  style: dotmatrix
+  color: green
 ```
 
 <p align="center">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="examples/oled-cards/github/summary-dark.svg">
-  <img src="examples/oled-cards/github/summary-light.svg" width="400" alt="GitHub summary">
+  <source media="(prefers-color-scheme: dark)" srcset="examples/dotmatrix-cards/green/summary-dark.svg">
+  <img src="examples/dotmatrix-cards/green/summary-light.svg" width="400" alt="Green summary">
 </picture>
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="examples/oled-cards/github/languages-dark.svg">
-  <img src="examples/oled-cards/github/languages-light.svg" width="400" alt="GitHub languages">
+  <source media="(prefers-color-scheme: dark)" srcset="examples/dotmatrix-cards/green/languages-dark.svg">
+  <img src="examples/dotmatrix-cards/green/languages-light.svg" width="400" alt="Green languages">
 </picture>
 </p>
 
-**No matrix**: square pixels instead of round LEDs, in any colour.
+**OLED**: square pixels, in any colour.
 
 ```yaml
-style: oled
-matrix: false
-color: amber
+look:
+  style: oled
+  color: amber
+  background: 0d0b07
 ```
 
 <p align="center">
-<img src="examples/oled-cards/no-matrix/summary.svg" width="400" alt="Summary without the matrix">
-<img src="examples/oled-cards/no-matrix/languages.svg" width="400" alt="Languages without the matrix">
+<img src="examples/oled-cards/summary.svg" width="400" alt="OLED summary">
+<img src="examples/oled-cards/languages.svg" width="400" alt="OLED languages">
 </p>
 
 ## Where the numbers come from
@@ -132,7 +134,7 @@ color: amber
 - Commits, pull requests, issues, reviews: GitHub's contributions API, with the same rules as the contribution graph on your profile. Without the token's `read:user` scope it hides private work.
 - Notable contributions: your list of pull requests.
 - Stars: the current total on your repos (forks left out), and how many of those were given in the last 12 months.
-- Active days, weekly rhythm, streaks: your contribution calendar. The `include` settings can't filter it.
+- Active days, weekly rhythm, streaks: your contribution calendar. The `count` settings can't filter it.
 
 Repos you can no longer access (e.g. a former employer's) can't be counted.
 
@@ -142,7 +144,7 @@ Repos you can no longer access (e.g. a former employer's) can't be counted.
 bash <(curl -fsSL https://raw.githubusercontent.com/pedrocatalao/github-cool-readme/v1/setup.sh)
 ```
 
-The command above needs [gh](https://cli.github.com) logged in. It asks before each change (`--dry-run` changes nothing), and does the steps below. Run it again any time to change which cards are shown and in what order, the style, colour or what's counted; your other settings stay as they are.
+The command above needs [gh](https://cli.github.com) logged in. It asks before each change (`--dry-run` changes nothing), and does the steps below. Run it again any time to change which cards are shown and in what order, the style, colour, background or what's counted; your other settings stay as they are. Settings from before v1.5 are moved to the new layout.
 
 To turn the cards off, run it and turn every card off. They're taken out of your README, but the marked block stays, so they come back in the same place. The workflow loses its schedule but can still be started by hand. Your token, settings and the `cards` branch are kept. To bring them back, run it again and turn a card on.
 
@@ -159,56 +161,60 @@ To turn the cards off, run it and turn every card off. They're taken out of your
 </picture>
 ```
 
-Same for `contributions`, `languages` and `weekly`. Show every card at `width="400"`: two fit a row, and on a narrow screen they stack. Every card then shows as 400 by 195: classic ones are that size, OLED ones are 450 by 219, scaled to fit.
+Same for `contributions`, `languages`, `weekly`, `streaks` and `about`. Show every card at `width="400"`: two fit a row, and on a narrow screen they stack. Every card then shows as 400 by 195: classic ones are that size, dot matrix and OLED ones are 450 by 219, scaled to fit.
 
 ## Settings
 
 `cool-readme.yml`, all optional. Defaults:
 
 ```yaml
-user: null              # defaults to the token's owner
-cards: [summary, languages, contributions, weekly]   # the cards to make, in README order; [] makes none.
-                        # Also: streaks, about
-style: classic          # or oled: pinball-style dot-matrix cards
-matrix: true            # oled only; false: square pixels instead of round LEDs
-color: github           # GitHub's blue and greens; amber or green: the ring, bars and highlights in that colour
-                        # (OLED cards: amber unless set)
-background: none        # the page shows through (amber and green go darker on light pages), or a colour
-                        # without #, like 030506: the same for every viewer, the text in shades that suit it
-include:
-  private: true
-  orgs: true            # repos of organizations you belong to
-theme:
-  border: false
-  animations: true
-summary:
-  title: null          # small, on the header line
-  ring: percent         # or github: the GitHub logo in the ring, the percentage in the title
-languages:
-  title: Most used languages   # null hides it
-  count: 6
-  exclude: []           # language names; their share is dropped
-  excludeRepos: []      # "repo" for your own, "owner/repo" otherwise
-  repoWeights: {}       # repo: multiplier; 0 leaves it out
-  other: true           # fold the rest into "Other"; false: the shown ones share 100%
-contributions:
-  title: Notable contributions
-  count: 6              # 3 in view at a time; the rest scroll past in a loop
-  includeOpen: true
-  pin: []               # shown first; pull requests closed without merging never count
-  hide: []
-weekly:
-  title: Weekly rhythm
-streaks:
-  title: Streaks
-about:
-  title: About
-  headline: null        # shown large
-  lines: []             # a line each; they're not wrapped, and more than fit scroll past
-  facts: {}             # label: text, a line each under the lines
+user: null                # defaults to the token's owner
+
+show: [summary, languages, contributions, weekly]   # the cards, in README order; [] for none
+                          # also: streaks, about
+
+count:
+  private: true           # private repos in the numbers
+  orgs: true              # repos of organizations you belong to
+
+look:
+  style: classic          # classic, oled (square pixels) or dotmatrix (round LEDs)
+  color: github           # GitHub's blue and greens; amber or green: what highlights, in that colour
+  animations: true        # false: still cards
+  background: none        # the page shows through (amber and green go darker on light pages), or a colour
+                          # without #, like 030506: the same for every viewer, the text in shades that suit it
+  border: false           # classic only: a thin outline, like GitHub's boxes
+
+cards:
+  summary:
+    title: null           # small, on the header line
+    ring: percent         # or github: the GitHub logo in the ring, the percentage in the title
+  languages:
+    title: Most used languages   # null hides it
+    count: 6
+    hide: []              # language names; their share is dropped
+    repos: {}             # weight per repo, "repo" for your own, "owner/repo" otherwise; 0 leaves it out
+    other: true           # fold the rest into "Other"; false: the shown ones share 100%
+  contributions:
+    title: Notable contributions
+    count: 6              # 3 in view at a time; the rest scroll past in a loop
+    open: true            # open pull requests count too, not only merged ones
+    pin: []               # shown first; pull requests closed without merging never count
+    hide: []
+  weekly:
+    title: Weekly rhythm
+  streaks:
+    title: Streaks
+  about:
+    title: About
+    headline: null        # shown large
+    lines: []             # a line each; they're not wrapped, and more than fit scroll past
+    facts: {}             # label: text, a line each under the lines
 ```
 
-`theme.border` and `summary.title` apply to the classic cards only. The settings `background` replaced still work: `transparent: false` for the OLED cards' dark panel, and `theme.background: solid` for GitHub's page colour behind the classic ones. Unknown settings are an error, so typos don't go unnoticed.
+A card that's not in `show` keeps its settings under `cards`, for when it's back. Unknown settings are an error, so typos don't go unnoticed.
+
+Settings from before v1.5, with everything at the top (`cards: [...]`, `style`, `include`, `theme`...), still work, and look the same: running setup again moves them to this layout.
 
 ## Local development
 
@@ -217,7 +223,7 @@ Needs Node 22.18 or newer (TypeScript runs directly, no build step).
 ```bash
 GITHUB_TOKEN=$(gh auth token) npm run dev   # fetch, render to out/, write out/preview.html
 npm run dev:offline                          # re-render from the saved data, no API calls
-npm run preview:oled                         # every OLED look side by side, in out/display/
+npm run preview:oled                         # every dot matrix and OLED look side by side, in out/display/
 npm test
 ```
 

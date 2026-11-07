@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { collect } from './collect.ts';
 import { compute } from './compute.ts';
-import { ConfigError, DEFAULT_CONFIG, loadConfig } from './config.ts';
+import { ConfigError, DEFAULT_CONFIG, loadConfig, usesOldLayout } from './config.ts';
 import { createClient } from './github.ts';
 import { previewHtml } from './preview.ts';
 import { cardWidths, renderAll } from './render/index.ts';
@@ -48,8 +48,11 @@ async function main(): Promise<void> {
     }
   }
 
-  if (config.cards.length === 0) {
-    log('No cards to make: "cards" is [], so the cards are off');
+  if (usesOldLayout(config)) {
+    log('note: your settings are in the layout from before v1.5. They still work; run setup again to move them to the new one (see the README)');
+  }
+  if (config.show.length === 0) {
+    log('No cards to make: "show" is [], so the cards are off');
     return;
   }
 

@@ -16,7 +16,7 @@ function bar(x: number, height: number): string {
 }
 
 export function renderWeekly(days: WeekdayItem[], theme: Theme, config: Config): string {
-  const title = config.weekly.title;
+  const title = config.cards.weekly.title;
   const header = title ? headerText(title, PAD) : '';
   const max = Math.max(0, ...days.map((d) => d.count));
   const total = days.reduce((s, d) => s + d.count, 0);
@@ -32,7 +32,7 @@ export function renderWeekly(days: WeekdayItem[], theme: Theme, config: Config):
   // Shaded with the contribution graph's greens: the busier the day, the brighter the green.
   const shade = (count: number) => theme.heat[Math.min(3, Math.ceil((count / max) * 4) - 1)];
   const slot = (WIDTH - 2 * PAD) / days.length;
-  const animate = config.theme.animations;
+  const animate = config.look.animations;
   const bars = days
     .map((d, i) => {
       const x = PAD + i * slot + (slot - BAR_WIDTH) / 2;

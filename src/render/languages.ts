@@ -11,7 +11,7 @@ const LEGEND_ROW = 32;
 const pct = (p: number) => `${p < 0.1 ? '<0.1' : p.toFixed(1)}%`;
 
 export function renderLanguages(items: LanguageItem[], theme: Theme, config: Config): string {
-  const title = config.languages.title;
+  const title = config.cards.languages.title;
   const header = title ? headerText(title, PAD) : '';
   const barWidth = WIDTH - 2 * PAD;
   const colorOf = (l: LanguageItem) => l.color ?? theme.neutral;

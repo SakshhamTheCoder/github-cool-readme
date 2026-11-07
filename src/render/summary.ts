@@ -28,7 +28,7 @@ export function renderSummary(m: SummaryModel, theme: Theme, config: Config): st
   const height = tableTop + rows.length * ROW + 8;
 
   // One column of numbers, the last 12 months and all time in turn; without animations, all time.
-  const turns = config.theme.animations;
+  const turns = config.look.animations;
   // They flip: the header first, then each row a little after the one above it.
   const roll = (cls: string, row: number, content: string) =>
     `<g class="${cls}" style="animation-delay: ${row * STAGGER}ms">${content}</g>`;

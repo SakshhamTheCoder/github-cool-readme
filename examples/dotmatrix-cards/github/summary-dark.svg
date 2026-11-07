@@ -6,7 +6,7 @@
   .as0 { animation: as0 18s infinite; }
   @keyframes as0 { 0.000% { opacity: 1; transform: translateY(0px); } 20.000% { opacity: 1; transform: translateY(0px); animation-timing-function: steps(71); } 23.333% { opacity: 1; transform: translateY(-213px); } 23.339% { opacity: 0; transform: translateY(0); } 100.000% { opacity: 0; transform: translateY(0); } }
   .ash0 { animation: ash0 18s infinite; }
-  @keyframes ash0 { 0.000% { transform: translateX(-30px) skewX(-25deg); } 6.111% { transform: translateX(-30px) skewX(-25deg); animation-timing-function: steps(27); } 9.444% { transform: translateX(240px) skewX(-25deg); } 100.000% { transform: translateX(240px) skewX(-25deg); } }
+  @keyframes ash0 { 0.000% { transform: translateX(-30px) skewX(-25deg); } 6.111% { transform: translateX(-30px) skewX(-25deg); animation-timing-function: steps(41); } 10.716% { transform: translateX(343px) skewX(-25deg); } 100.000% { transform: translateX(343px) skewX(-25deg); } }
   .asp0all { animation: asp0all 18s infinite; }
   @keyframes asp0all { 0.000% { opacity: 0; } 3.333% { opacity: 0; animation-timing-function: steps(1, end); } 3.339% { opacity: 1; } 99.994% { opacity: 1; animation-timing-function: steps(1, end); } 100.000% { opacity: 0; } }
   .asp0k0 { animation: asp0k0 18s infinite; }
@@ -24,13 +24,13 @@
   .as1 { animation: as1 18s infinite; }
   @keyframes as1 { 0.000% { opacity: 0; transform: translateY(0); } 19.994% { opacity: 0; transform: translateY(0); } 20.000% { opacity: 1; transform: translateY(213px); animation-timing-function: steps(71); } 23.333% { opacity: 1; transform: translateY(0px); } 43.333% { opacity: 1; transform: translateY(0px); } 43.339% { opacity: 0; transform: translateY(0); } 100.000% { opacity: 0; transform: translateY(0); } }
   .ash1 { animation: ash1 18s infinite; }
-  @keyframes ash1 { 0.000% { transform: translateX(-30px) skewX(-25deg); } 26.111% { transform: translateX(-30px) skewX(-25deg); animation-timing-function: steps(27); } 29.444% { transform: translateX(240px) skewX(-25deg); } 100.000% { transform: translateX(240px) skewX(-25deg); } }
+  @keyframes ash1 { 0.000% { transform: translateX(-30px) skewX(-25deg); } 26.111% { transform: translateX(-30px) skewX(-25deg); animation-timing-function: steps(41); } 30.716% { transform: translateX(343px) skewX(-25deg); } 100.000% { transform: translateX(343px) skewX(-25deg); } }
   .awo1 { transform-box: fill-box; transform-origin: right; animation: awo1 18s infinite; }
   @keyframes awo1 { 0.000% { transform: scaleX(1); } 40.000% { transform: scaleX(1); animation-timing-function: steps(80); } 43.333% { transform: scaleX(0); } 100.000% { transform: scaleX(1); } }
   .as2 { animation: as2 18s infinite; }
   @keyframes as2 { 0.000% { opacity: 0; transform: translateY(0); } 39.994% { opacity: 0; transform: translateY(0); } 40.000% { opacity: 1; transform: translateY(0px); } 59.994% { opacity: 1; transform: translateY(0px); } 60.000% { opacity: 0; transform: translateY(0); } 100.000% { opacity: 0; transform: translateY(0); } }
   .ash2 { animation: ash2 18s infinite; }
-  @keyframes ash2 { 0.000% { transform: translateX(-30px) skewX(-25deg); } 46.111% { transform: translateX(-30px) skewX(-25deg); animation-timing-function: steps(27); } 49.444% { transform: translateX(240px) skewX(-25deg); } 100.000% { transform: translateX(240px) skewX(-25deg); } }
+  @keyframes ash2 { 0.000% { transform: translateX(-30px) skewX(-25deg); } 46.111% { transform: translateX(-30px) skewX(-25deg); animation-timing-function: steps(41); } 50.716% { transform: translateX(343px) skewX(-25deg); } 100.000% { transform: translateX(343px) skewX(-25deg); } }
   .awi2 { transform-box: fill-box; transform-origin: left; animation: awi2 18s infinite; }
   @keyframes awi2 { 0.000% { transform: scaleX(0); } 40.000% { transform: scaleX(0); animation-timing-function: steps(80); } 43.333% { transform: scaleX(1); } 99.994% { transform: scaleX(1); } 100.000% { transform: scaleX(0); } }
   .awb2 { animation: awb2 18s infinite; }
@@ -38,11 +38,11 @@
   .as3 { animation: as3 18s infinite; }
   @keyframes as3 { 0.000% { opacity: 0; transform: translateY(0); } 59.994% { opacity: 0; transform: translateY(0); } 60.000% { opacity: 1; transform: translateY(0); animation-timing-function: steps(1, end); } 60.667% { opacity: 0; transform: translateY(0); animation-timing-function: steps(1, end); } 61.333% { opacity: 1; transform: translateY(0); animation-timing-function: steps(1, end); } 62.000% { opacity: 0; transform: translateY(0); animation-timing-function: steps(1, end); } 62.667% { opacity: 1; transform: translateY(0); animation-timing-function: steps(1, end); } 79.994% { opacity: 1; transform: translateY(0px); } 80.000% { opacity: 0; transform: translateY(0); } 100.000% { opacity: 0; transform: translateY(0); } }
   .ash3 { animation: ash3 18s infinite; }
-  @keyframes ash3 { 0.000% { transform: translateX(-30px) skewX(-25deg); } 66.111% { transform: translateX(-30px) skewX(-25deg); animation-timing-function: steps(27); } 69.444% { transform: translateX(240px) skewX(-25deg); } 100.000% { transform: translateX(240px) skewX(-25deg); } }
+  @keyframes ash3 { 0.000% { transform: translateX(-30px) skewX(-25deg); } 66.111% { transform: translateX(-30px) skewX(-25deg); animation-timing-function: steps(41); } 70.716% { transform: translateX(343px) skewX(-25deg); } 100.000% { transform: translateX(343px) skewX(-25deg); } }
   .as4 { animation: as4 18s infinite; }
   @keyframes as4 { 0.000% { opacity: 0; transform: translateY(0); } 79.994% { opacity: 0; transform: translateY(0); } 80.000% { opacity: 1; transform: translateY(0px); } 99.994% { opacity: 1; transform: translateY(0px); } 100.000% { opacity: 0; transform: translateY(0); } }
   .ash4 { animation: ash4 18s infinite; }
-  @keyframes ash4 { 0.000% { transform: translateX(-30px) skewX(-25deg); } 86.111% { transform: translateX(-30px) skewX(-25deg); animation-timing-function: steps(27); } 89.444% { transform: translateX(240px) skewX(-25deg); } 100.000% { transform: translateX(240px) skewX(-25deg); } }
+  @keyframes ash4 { 0.000% { transform: translateX(-30px) skewX(-25deg); } 86.111% { transform: translateX(-30px) skewX(-25deg); animation-timing-function: steps(41); } 90.716% { transform: translateX(343px) skewX(-25deg); } 100.000% { transform: translateX(343px) skewX(-25deg); } }
   .at4c0 { animation: at4c0 18s infinite; }
   @keyframes at4c0 { 0.000% { opacity: 0; } 80.000% { opacity: 0; animation-timing-function: steps(1, end); } 80.222% { opacity: 1; } 99.994% { opacity: 1; animation-timing-function: steps(1, end); } 100.000% { opacity: 0; } }
   .at4c1 { animation: at4c1 18s infinite; }
