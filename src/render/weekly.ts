@@ -1,6 +1,6 @@
 import type { Config } from '../config.ts';
 import type { WeekdayItem } from '../compute.ts';
-import { CARD_HEIGHT, CONTENT_TOP, NARROW as WIDTH, PAD, card, esc, formatNumber, headerText, type Theme } from './svg.ts';
+import { CARD_HEIGHT, CONTENT_TOP, PAD, WIDTH, card, esc, formatNumber, headerText, type Theme } from './svg.ts';
 
 const BASELINE = 166;
 const MAX_BAR = 112; // the busiest day's bar

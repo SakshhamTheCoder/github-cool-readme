@@ -51,13 +51,20 @@ describe('cards', () => {
     }
   });
 
-  it('makes the cards one height, wide or narrow', () => {
+  it('makes the cards one size', () => {
     const size = (svg: string) => svg.match(/<svg [^>]*width="(\d+)" height="(\d+)"/)!.slice(1).join('x');
     const files = render();
-    expect(size(files['summary-light.svg'])).toBe('450x195');
-    expect(size(files['contributions-light.svg'])).toBe('450x195');
-    expect(size(files['languages-light.svg'])).toBe('350x195');
-    expect(size(files['weekly-light.svg'])).toBe('350x195');
+    for (const card of ['summary', 'contributions', 'languages', 'weekly']) expect(size(files[`${card}-light.svg`])).toBe('400x195');
+  });
+
+  it('shows the summary numbers for the year and all time in turn, or all time without animations', () => {
+    const files = render();
+    expect(files['summary-light.svg']).toContain('<g class="year"');
+    expect(files['summary-light.svg']).toContain('@keyframes all');
+    const still = render((c) => { c.theme.animations = false; })['summary-light.svg'];
+    expect(still).not.toContain('class="year"');
+    expect(still).toContain('ALL TIME');
+    expect(still).not.toContain('>YEAR<');
   });
 
   it('scrolls the contributions in a loop when more than 3 are shown', () => {

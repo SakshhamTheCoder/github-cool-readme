@@ -41,9 +41,7 @@ export function renderAll(model: Model, config: Config): Record<string, string> 
   return files;
 }
 
-/** The width each card is shown at in a README. OLED cards are 450 wide, shown at 400 so two fit a row. */
-export function cardWidths(config: Config): Record<string, number> {
-  return config.style === 'oled'
-    ? { summary: 400, languages: 400, contributions: 400, weekly: 400 }
-    : { summary: 450, languages: 350, contributions: 450, weekly: 350 };
+/** The width each card is shown at in a README: 400, so two fit a row. Classic cards are 400 wide; OLED ones are 450, scaled. */
+export function cardWidths(_config: Config): Record<string, number> {
+  return { summary: 400, languages: 400, contributions: 400, weekly: 400 };
 }

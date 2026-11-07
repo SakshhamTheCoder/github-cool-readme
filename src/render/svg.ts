@@ -42,12 +42,10 @@ export const THEMES: Record<Mode, Theme> = {
   },
 };
 
-// Two widths and one height: a wide and a narrow card side by side fill a profile README's
-// 800px (450 + 350, like the github-readme-stats cards), shown at their real size so the
-// text isn't scaled down. Every card has the same header line: small uppercase text (a title,
-// column names) at HEADER_Y, with the content starting at CONTENT_TOP.
-export const WIDE = 450;
-export const NARROW = 350;
+// One size for every card: two side by side fill a profile README's 800px, shown at their real
+// size so the text isn't scaled down. Every card has the same header line: small uppercase text
+// (a title, column names) at HEADER_Y, with the content starting at CONTENT_TOP.
+export const WIDTH = 400;
 export const CARD_HEIGHT = 195;
 export const PAD = 20;
 export const HEADER_Y = 28;

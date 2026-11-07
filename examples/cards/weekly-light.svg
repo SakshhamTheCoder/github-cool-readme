@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="350" height="195" viewBox="0 0 350 195" fill="none" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="195" viewBox="0 0 400 195" fill="none" role="img" aria-labelledby="title desc">
 <title id="title">Weekly rhythm</title>
-<desc id="desc">Contributions per weekday over the last 12 months (5,031 in total): Mon 868, Tue 857, Wed 797, Thu 741, Fri 528, Sat 636, Sun 604. Busiest: Mon.</desc>
+<desc id="desc">Contributions per weekday over the last 12 months (5,023 in total): Mon 868, Tue 857, Wed 806, Thu 724, Fri 528, Sat 636, Sun 604. Busiest: Mon.</desc>
 <style>
   text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif; fill: #1f2328; }
   .label { font-size: 14px; }
@@ -21,14 +21,14 @@
   .rise { transform-box: fill-box; transform-origin: bottom; animation: rise 0.7s cubic-bezier(.2,.7,.2,1) both; }
   @keyframes rise { from { transform: scaleY(0); } }
 </style>
-<rect x="0.5" y="0.5" width="349" height="194" rx="6" fill="none" stroke="none"/>
+<rect x="0.5" y="0.5" width="399" height="194" rx="6" fill="none" stroke="none"/>
 <text x="20" y="28" class="col">WEEKLY RHYTHM</text>
-<line x1="20" y1="166.5" x2="330" y2="166.5" stroke="#d1d9e0"/>
-<path class="rise" style="animation-delay: 200ms" d="M30.142857142857142 166V58Q30.142857142857142 54 34.14285714285714 54H50.14285714285714Q54.14285714285714 54 54.14285714285714 58V166Z" fill="#9be9a8"/><text x="42.14285714285714" y="184" text-anchor="middle" class="small secondary">Mon</text>
-<path class="rise" style="animation-delay: 260ms" d="M74.42857142857142 166V59.41935483870968Q74.42857142857142 55.41935483870968 78.42857142857142 55.41935483870968H94.42857142857142Q98.42857142857142 55.41935483870968 98.42857142857142 59.41935483870968V166Z" fill="#9be9a8"/><text x="86.42857142857142" y="184" text-anchor="middle" class="small secondary">Tue</text>
-<path class="rise" style="animation-delay: 320ms" d="M118.71428571428571 166V67.16129032258064Q118.71428571428571 63.16129032258064 122.71428571428571 63.16129032258064H138.71428571428572Q142.71428571428572 63.16129032258064 142.71428571428572 67.16129032258064V166Z" fill="#9be9a8"/><text x="130.71428571428572" y="184" text-anchor="middle" class="small secondary">Wed</text>
-<path class="rise" style="animation-delay: 380ms" d="M163 166V74.38709677419354Q163 70.38709677419354 167 70.38709677419354H183Q187 70.38709677419354 187 74.38709677419354V166Z" fill="#9be9a8"/><text x="175" y="184" text-anchor="middle" class="small secondary">Thu</text>
-<path class="rise" style="animation-delay: 440ms" d="M207.28571428571428 166V101.87096774193549Q207.28571428571428 97.87096774193549 211.28571428571428 97.87096774193549H227.28571428571428Q231.28571428571428 97.87096774193549 231.28571428571428 101.87096774193549V166Z" fill="#40c463"/><text x="219.28571428571428" y="184" text-anchor="middle" class="small secondary">Fri</text>
-<path class="rise" style="animation-delay: 500ms" d="M251.57142857142856 166V87.93548387096774Q251.57142857142856 83.93548387096774 255.57142857142856 83.93548387096774H271.57142857142856Q275.57142857142856 83.93548387096774 275.57142857142856 87.93548387096774V166Z" fill="#40c463"/><text x="263.57142857142856" y="184" text-anchor="middle" class="small secondary">Sat</text>
-<path class="rise" style="animation-delay: 560ms" d="M295.8571428571429 166V92.06451612903226Q295.8571428571429 88.06451612903226 299.8571428571429 88.06451612903226H315.8571428571429Q319.8571428571429 88.06451612903226 319.8571428571429 92.06451612903226V166Z" fill="#40c463"/><text x="307.8571428571429" y="184" text-anchor="middle" class="small secondary">Sun</text>
+<line x1="20" y1="166.5" x2="380" y2="166.5" stroke="#d1d9e0"/>
+<path class="rise" style="animation-delay: 200ms" d="M33.714285714285715 166V58Q33.714285714285715 54 37.714285714285715 54H53.714285714285715Q57.714285714285715 54 57.714285714285715 58V166Z" fill="#9be9a8"/><text x="45.714285714285715" y="184" text-anchor="middle" class="small secondary">Mon</text>
+<path class="rise" style="animation-delay: 260ms" d="M85.14285714285714 166V59.41935483870968Q85.14285714285714 55.41935483870968 89.14285714285714 55.41935483870968H105.14285714285714Q109.14285714285714 55.41935483870968 109.14285714285714 59.41935483870968V166Z" fill="#9be9a8"/><text x="97.14285714285714" y="184" text-anchor="middle" class="small secondary">Tue</text>
+<path class="rise" style="animation-delay: 320ms" d="M136.57142857142858 166V66Q136.57142857142858 62 140.57142857142858 62H156.57142857142858Q160.57142857142858 62 160.57142857142858 66V166Z" fill="#9be9a8"/><text x="148.57142857142858" y="184" text-anchor="middle" class="small secondary">Wed</text>
+<path class="rise" style="animation-delay: 380ms" d="M188 166V76.58064516129032Q188 72.58064516129032 192 72.58064516129032H208Q212 72.58064516129032 212 76.58064516129032V166Z" fill="#9be9a8"/><text x="200" y="184" text-anchor="middle" class="small secondary">Thu</text>
+<path class="rise" style="animation-delay: 440ms" d="M239.42857142857144 166V101.87096774193549Q239.42857142857144 97.87096774193549 243.42857142857144 97.87096774193549H259.42857142857144Q263.42857142857144 97.87096774193549 263.42857142857144 101.87096774193549V166Z" fill="#40c463"/><text x="251.42857142857144" y="184" text-anchor="middle" class="small secondary">Fri</text>
+<path class="rise" style="animation-delay: 500ms" d="M290.8571428571429 166V87.93548387096774Q290.8571428571429 83.93548387096774 294.8571428571429 83.93548387096774H310.8571428571429Q314.8571428571429 83.93548387096774 314.8571428571429 87.93548387096774V166Z" fill="#40c463"/><text x="302.8571428571429" y="184" text-anchor="middle" class="small secondary">Sat</text>
+<path class="rise" style="animation-delay: 560ms" d="M342.2857142857143 166V92.06451612903226Q342.2857142857143 88.06451612903226 346.2857142857143 88.06451612903226H362.2857142857143Q366.2857142857143 88.06451612903226 366.2857142857143 92.06451612903226V166Z" fill="#40c463"/><text x="354.2857142857143" y="184" text-anchor="middle" class="small secondary">Sun</text>
 </svg>

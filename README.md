@@ -29,21 +29,21 @@ summary:
 <p align="center">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="examples/cards/summary-dark.svg">
-  <img src="examples/cards/summary-light.svg" width="450" alt="GitHub stats">
+  <img src="examples/cards/summary-light.svg" width="400" alt="GitHub stats">
 </picture>
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="examples/cards/languages-dark.svg">
-  <img src="examples/cards/languages-light.svg" width="350" alt="Most used languages">
+  <img src="examples/cards/languages-light.svg" width="400" alt="Most used languages">
 </picture>
 </p>
 <p align="center">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="examples/cards/contributions-dark.svg">
-  <img src="examples/cards/contributions-light.svg" width="450" alt="Notable contributions">
+  <img src="examples/cards/contributions-light.svg" width="400" alt="Notable contributions">
 </picture>
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="examples/cards/weekly-dark.svg">
-  <img src="examples/cards/weekly-light.svg" width="350" alt="Weekly rhythm">
+  <img src="examples/cards/weekly-light.svg" width="400" alt="Weekly rhythm">
 </picture>
 </p>
 
@@ -150,11 +150,11 @@ To turn the cards off, run it and turn every card off. They're taken out of your
 ```html
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/you/you/cards/summary-dark.svg">
-  <img src="https://raw.githubusercontent.com/you/you/cards/summary-light.svg" width="450" alt="GitHub stats">
+  <img src="https://raw.githubusercontent.com/you/you/cards/summary-light.svg" width="400" alt="GitHub stats">
 </picture>
 ```
 
-Same for `contributions` (450 wide), `languages` and `weekly` (350). All cards are 195 tall: a wide and a narrow one sit side by side, and on a narrow screen they stack. OLED cards are all 450 by 195; show each at `width="400"` so two fit a row.
+Same for `contributions`, `languages` and `weekly`. Show every card at `width="400"`: two fit a row, and on a narrow screen they stack. Classic cards are 400 by 195; OLED ones are 450 by 195, scaled to fit.
 
 ## Settings
 

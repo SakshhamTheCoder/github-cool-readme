@@ -1,7 +1,7 @@
 import type { Config } from '../config.ts';
 import type { CountKey, SummaryModel } from '../compute.ts';
 import { icon, type IconName } from './icons.ts';
-import { CARD_HEIGHT, CONTENT_TOP, PAD, WIDE, card, esc, fadeIn, formatNumber, headerText, type Theme } from './svg.ts';
+import { CARD_HEIGHT, CONTENT_TOP, PAD, WIDTH, card, esc, fadeIn, formatNumber, headerText, type Theme } from './svg.ts';
 
 const ICONS: Record<CountKey, IconName> = {
   commits: 'git-commit',
@@ -11,9 +11,10 @@ const ICONS: Record<CountKey, IconName> = {
 };
 
 const ROW = 28;
-const COL_12 = 222; // right edge of the "year" column
-const COL_ALL = 300; // right edge of the "all time" column
-const RING_X = 374; // centred in the space right of the table
+const COL = 222; // right edge of the numbers: the year's and the all-time ones take turns there
+const RING_X = 306; // centred in the space right of the numbers
+const TURN = 3; // seconds each of the two stays in view
+const STAGGER = 70; // ms between the rows as they flip
 const RADIUS = 40;
 const LOGO = 66; // GitHub mark: nearly fills the ring, as on the old github-readme-stats card
 
@@ -25,10 +26,17 @@ export function renderSummary(m: SummaryModel, theme: Theme, config: Config): st
   const tableTop = CONTENT_TOP;
   const height = tableTop + rows.length * ROW + 8;
 
+  // One column of numbers, the last 12 months and all time in turn; without animations, all time.
+  const turns = config.theme.animations;
+  // They flip: the header first, then each row a little after the one above it.
+  const roll = (cls: string, row: number, content: string) =>
+    `<g class="${cls}" style="animation-delay: ${row * STAGGER}ms">${content}</g>`;
+  const year = (row: number, content: string) => (turns ? roll('year', row, content) : '');
+  const allTime = (row: number, content: string) => (turns ? roll('all', row, content) : content);
   const header =
     (m.title ? headerText(m.title, PAD) : '') +
-    headerText('Year', COL_12, 'end') +
-    headerText('All time', COL_ALL, 'end') +
+    year(0, headerText('Year', COL, 'end')) +
+    allTime(0, headerText('All time', COL, 'end')) +
     headerText(`${m.ring === 'github' ? `${m.activity.percent}% ` : ''}Active days`, RING_X, 'middle');
 
   const body = rows
@@ -39,8 +47,8 @@ export function renderSummary(m: SummaryModel, theme: Theme, config: Config): st
         i,
         icon(r.icon, PAD, 3) +
           `<text x="${PAD + 26}" y="15" class="label">${esc(r.label)}</text>` +
-          (r.last12 ? `<text x="${COL_12}" y="15" class="value" text-anchor="end">${r.last12}</text>` : '') +
-          `<text x="${COL_ALL}" y="15" class="value" text-anchor="end">${r.all}</text>`,
+          (r.last12 ? year(i + 1, `<text x="${COL}" y="15" class="value" text-anchor="end">${r.last12}</text>`) : '') +
+          allTime(i + 1, `<text x="${COL}" y="15" class="value" text-anchor="end">${r.all}</text>`),
         config,
       ),
     )
@@ -62,9 +70,20 @@ ${
     : `<g class="pop"><text x="${RING_X}" y="${cy + 7}" text-anchor="middle" style="font-size: 20px; font-weight: 700;">${m.activity.percent}%</text></g>`
 }`;
 
+  // Each shows for TURN seconds, then flips: it folds to a line and the other unfolds from it.
+  // Without motion (reduced motion), all time.
+  const cycle = `${2 * TURN}s ease-in-out infinite`;
   const css =
     `\n  .logo { fill: ${theme.text}; }` +
-    (config.theme.animations ? `\n  @keyframes ring { from { stroke-dashoffset: ${circumference.toFixed(2)}; } }` : '');
+    (turns
+      ? `\n  @keyframes ring { from { stroke-dashoffset: ${circumference.toFixed(2)}; } }` +
+        `\n  .year, .all { transform-box: fill-box; transform-origin: center; }` +
+        `\n  .year { opacity: 0; animation: year ${cycle} both; }` +
+        `\n  .all { animation: all ${cycle} both; }` +
+        `\n  @keyframes year { 0%, 44% { opacity: 1; transform: scaleY(1); } 47%, 97% { opacity: 1; transform: scaleY(0); }` +
+        ` 100% { opacity: 1; transform: scaleY(1); } }` +
+        `\n  @keyframes all { 0%, 47% { transform: scaleY(0); } 50%, 94% { transform: scaleY(1); } 97%, 100% { transform: scaleY(0); } }`
+      : '');
 
   const desc = [
     ...m.rows.map((r) => `${r.label}: ${r.last12Months} in the last 12 months, ${r.allTime} all time.`),
@@ -73,7 +92,7 @@ ${
   ].join(' ');
 
   return card({
-    width: WIDE,
+    width: WIDTH,
     height: Math.max(CARD_HEIGHT, height, cy + RADIUS + 10),
     title: m.title ?? 'GitHub stats',
     desc,

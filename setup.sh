@@ -664,8 +664,8 @@ else
   fi
   note "$(paint 2 "more settings (languages, titles, ...): edit $CONFIG; see github.com/$TOOL_REPO#settings")"
 fi
-# OLED cards are all one size, shown 400 wide; classic ones are a wide and a narrow card per row.
-if grep -Eq '^style:[[:space:]]*oled' "$CONFIG"; then WIDE=400; NARROW=400; else WIDE=450; NARROW=350; fi
+# Every card is shown 400 wide, so two fit a row: classic ones are that size, OLED ones are scaled.
+WIDTH=400
 
 section "Workflow"
 # The template runs on a schedule and on demand; with the cards off, the schedule comes out.
@@ -715,10 +715,10 @@ picture() { # picture card width alt
 }
 card_picture() { # card_picture card
   case "$1" in
-    summary) picture summary "$WIDE" "GitHub stats" ;;
-    languages) picture languages "$NARROW" "Most used languages" ;;
-    contributions) picture contributions "$WIDE" "Notable contributions" ;;
-    weekly) picture weekly "$NARROW" "Weekly rhythm" ;;
+    summary) picture summary "$WIDTH" "GitHub stats" ;;
+    languages) picture languages "$WIDTH" "Most used languages" ;;
+    contributions) picture contributions "$WIDTH" "Notable contributions" ;;
+    weekly) picture weekly "$WIDTH" "Weekly rhythm" ;;
   esac
 }
 block="$(mktemp)"
@@ -734,7 +734,7 @@ block="$(mktemp)"
   [ $((n % 2)) = 1 ] && echo '</p>'
   echo "$END"
 } > "$block"
-if [ "$WIDE" = "$NARROW" ]; then size="$WIDE wide"; else size="$WIDE and $NARROW wide"; fi
+size="$WIDTH wide"
 shown="the cards"; $CARDS_OFF && shown="no cards (they're off)"
 missing_cards=false # a card that's on but not made yet: the README waits for the first run
 for card in $S_CARDS; do made "$card-light.svg" || missing_cards=true; done

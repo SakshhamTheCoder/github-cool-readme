@@ -1,6 +1,6 @@
 import type { Config } from '../config.ts';
 import type { LanguageItem } from '../compute.ts';
-import { CARD_HEIGHT, CONTENT_TOP, NARROW as WIDTH, PAD, TEXT, card, esc, fadeIn, headerText, truncate, type Theme } from './svg.ts';
+import { CARD_HEIGHT, CONTENT_TOP, PAD, WIDTH, TEXT, card, esc, fadeIn, headerText, truncate, type Theme } from './svg.ts';
 
 const BAR_Y = CONTENT_TOP + 2;
 const BAR_H = 10;

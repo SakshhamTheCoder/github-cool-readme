@@ -2,7 +2,7 @@ import type { Config } from '../config.ts';
 import type { ContributionItem } from '../compute.ts';
 import { icon } from './icons.ts';
 import {
-  CARD_HEIGHT, CONTENT_TOP, PAD, SMALL, TEXT, WIDE as WIDTH, card, esc, fadeIn, formatCompact, formatMonth, headerText, plural,
+  CARD_HEIGHT, CONTENT_TOP, PAD, SMALL, TEXT, WIDTH, card, esc, fadeIn, formatCompact, formatMonth, headerText, plural,
   textWidth, truncate, type Theme,
 } from './svg.ts';
 
