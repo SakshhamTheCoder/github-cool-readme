@@ -224,9 +224,9 @@ export function compute(snapshot: Snapshot, config: Config): Model {
     weekly[(sundayFirst + 6) % 7].count += d.count;
   }
 
-  // Streaks: every day since you joined. Like the weekly rhythm, the calendar can't be filtered.
-  const streaks = streakStats(snapshot.allDays);
-  const days = streakDays(snapshot.allDays);
+  // Streaks: the last 12 months, like the active days and the weekly rhythm; the calendar can't be filtered.
+  const streaks = streakStats(snapshot.calendar);
+  const days = streakDays(snapshot.calendar);
   if (filtering && config.show.includes('streaks')) {
     notes.push('the count settings cannot filter the contribution calendar, so the streaks card still counts private and organization work');
   }

@@ -68,6 +68,4 @@ export interface Snapshot {
   pullRequests: PullRequest[];
   /** Owner login (lowercase) -> data: URI of the avatar. */
   avatars: Record<string, string>;
-  /** The contribution calendar since you joined; empty unless the streaks card is on. */
-  allDays: { date: string; count: number }[];
 }

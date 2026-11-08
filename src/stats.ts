@@ -1,4 +1,4 @@
-// Numbers worked out from the contribution calendar since you joined, for the streaks card.
+// Numbers worked out from the contribution calendar of the last 12 months, for the streaks card.
 import { formatDay, formatMonth, formatNumber, plural } from './render/svg.ts';
 import type { Snapshot } from './types.ts';
 
@@ -11,7 +11,7 @@ export interface Tile {
 const DAY = 24 * 60 * 60 * 1000;
 
 /** The longest run of active days, and the run reaching today; a quiet today doesn't end a streak. */
-export function streakLengths(days: Snapshot['allDays']): { current: number; longest: number } {
+export function streakLengths(days: Snapshot['calendar']): { current: number; longest: number } {
   const dates = [...new Map(days.map((d) => [d.date, d.count])).entries()].sort(([a], [b]) => a.localeCompare(b));
   let longest = 0;
   let run = 0;
@@ -48,7 +48,7 @@ export interface StreakDays {
   bestMonth: string | null;
 }
 
-export function streakDays(all: Snapshot['allDays']): StreakDays {
+export function streakDays(all: Snapshot['calendar']): StreakDays {
   const days = [...new Map(all.map((d) => [d.date, d.count])).entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, count]) => ({ date, count }));
@@ -73,11 +73,11 @@ export function streakDays(all: Snapshot['allDays']): StreakDays {
   return { days, current: currentAt, longest: longestAt, best, bestMonth };
 }
 
-export function streakStats(days: Snapshot['allDays']): Tile[] {
+export function streakStats(days: Snapshot['calendar']): Tile[] {
   const { current, longest } = streakLengths(days);
   const active = days.filter((d) => d.count > 0);
   const total = active.reduce((s, d) => s + d.count, 0);
-  const best = active.reduce<Snapshot['allDays'][number] | null>((top, d) => (top && top.count >= d.count ? top : d), null);
+  const best = active.reduce<Snapshot['calendar'][number] | null>((top, d) => (top && top.count >= d.count ? top : d), null);
   const months = new Map<string, number>();
   for (const d of active) months.set(d.date.slice(0, 7), (months.get(d.date.slice(0, 7)) ?? 0) + d.count);
   const bestMonth = [...months.entries()].sort((a, b) => b[1] - a[1])[0];

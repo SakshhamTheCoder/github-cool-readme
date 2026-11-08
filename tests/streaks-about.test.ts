@@ -40,15 +40,17 @@ describe('streaks', () => {
 
   it('reports the streaks, active days and the best day and month', () => {
     const stats = compute(fixture(), DEFAULT_CONFIG).streaks;
-    expect(tile(stats, 'Current streak')).toBe('2 days');
-    expect(tile(stats, 'Longest streak')).toBe('3 days');
-    expect(tile(stats, 'Active days')).toBe(5);
-    expect(tile(stats, 'Best day · Jan 2, 2026')).toBe(9);
-    expect(tile(stats, 'Best month · Jan 2026')).toBe(12);
+    // The last 12 months' calendar, Oct 1-10: 0 0 0 0 4 5 6 7 8 9.
+    expect(tile(stats, 'Current streak')).toBe('6 days');
+    expect(tile(stats, 'Longest streak')).toBe('6 days');
+    expect(tile(stats, 'Active days')).toBe(6);
+    expect(tile(stats, 'Per active day')).toBe('7'); // 39 / 6, rounded
+    expect(tile(stats, 'Best day · Oct 10, 2026')).toBe(9);
+    expect(tile(stats, 'Best month · Oct 2026')).toBe(39);
   });
 
   it('knows where the runs, the best day and the best month are, for the oled strips', () => {
-    const sd = streakDays(fixture().allDays); // Jan 1-4: 2 9 1 0, Feb 27-28: 3 3, Mar 1: 0
+    const sd = streakDays([...days('2026-01-01', [2, 9, 1, 0]), ...days('2026-02-27', [3, 3, 0])]);
     expect(sd.days.map((d) => d.date)).toEqual(['2026-01-01', '2026-01-02', '2026-01-03', '2026-01-04', '2026-02-27', '2026-02-28', '2026-03-01']);
     expect(sd.longest).toEqual([0, 2]);
     expect(sd.current).toEqual([4, 5]);
@@ -59,7 +61,8 @@ describe('streaks', () => {
 
   it('gives each oled slide its own strip of days', () => {
     const c = parseConfig('style: oled\ncards: [streaks]\n');
-    const svg = renderAll(compute(fixture(), c), c)['streaks-dark.svg'];
+    const calendar = [...days('2026-01-01', [2, 9, 1, 0]), ...days('2026-02-27', [3, 3, 0])];
+    const svg = renderAll(compute({ ...fixture(), calendar }, c), c)['streaks-dark.svg'];
     expect(svg.match(/-opacity="0.25"/g)?.length).toBeGreaterThanOrEqual(5); // the days a slide isn't about, slide by slide
     expect(svg).toMatch(/-opacity="0.6"/); // the average line
   });
@@ -73,8 +76,8 @@ describe('streaks', () => {
     expect(still).not.toContain('class="cols"');
     expect(still).not.toContain('page2');
     expect(still.match(/fill="#2da44e"/g)?.length).toBe(1); // the longest streak's bars, in green
-    expect(still).toMatch(/fill: #2da44e;">3 days</); // and its number (the fixture's longest streak)
-    expect(svg).toMatch(/fill: #2da44e;">12</); // the best month's number, on page 2
+    expect(still).toMatch(/fill: #2da44e;">6 days</); // and its number (the fixture's longest streak)
+    expect(svg).toMatch(/fill: #2da44e;">39</); // the best month's number, on page 2
   });
 
   it('is a 400 by 195 card', () => {
@@ -135,7 +138,7 @@ describe('the new cards', () => {
       expect(svg).not.toContain('<text'); // drawn in dots, not set in a font
       expect(svg).not.toMatch(/NaN|undefined|Infinity/);
     }
-    expect(files['streaks-light.svg']).toContain('Longest streak: 3 days');
+    expect(files['streaks-light.svg']).toContain('Longest streak: 6 days');
     expect(files['about-light.svg']).toContain('Hi One line Focus: Tools');
     expect(files['about-light.svg']).toContain('@keyframes'); // the slides take turns
   });
