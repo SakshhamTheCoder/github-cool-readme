@@ -13,7 +13,8 @@
     "dev:offline": "node src/cli.ts --config examples/cool-readme.yml --out out --from-snapshot .cache/snapshot.json --preview",
     "test": "vitest run",
     "typecheck": "tsc",
-    "preview": "node scripts/preview.ts"
+    "preview": "node scripts/preview.ts",
+    "examples": "node scripts/examples.ts"
   },
   "dependencies": {
     "@primer/octicons": "^19.42.0",

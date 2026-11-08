@@ -110,12 +110,15 @@ describe('about', () => {
     expect(svg).toMatch(/<svg [^>]*width="400" height="195"/);
   });
 
-  it('scrolls the lines and facts that don\'t fit a page at a time, the headline staying', () => {
+  it('scrolls the lines that don\'t fit slowly up to the last, then crossfades back to the start, the headline staying', () => {
     const many = (c: Config) => { c.cards.about.headline = 'Hi'; c.cards.about.lines = ['1', '2', '3', '4', '5', '6', '7']; };
     const svg = render('about', many);
     expect(svg).toContain('>7<');
-    // 4 rows in view under a headline: two pages of 4 rows, the second with 3
-    expect(svg).toMatch(/@keyframes scroll \{ 0.00%, [\d.]+% \{ transform: translateY\(-0px\); \} [\d.]+%, [\d.]+% \{ transform: translateY\(-88px\); \} 100%/);
+    // 4 rows in view under a headline: up 3 rows, just enough for the 7th, then fading out as a
+    // copy of the first 4 fades in
+    expect(svg).toMatch(/@keyframes scroll \{ 0%, [\d.]+% \{ transform: translateY\(0\); \} .* 100% \{ opacity: 0; transform: translateY\(-66px\); \} \}/);
+    expect(svg).toMatch(/@keyframes again \{ 0%, [\d.]+% \{ opacity: 0; \} 100% \{ opacity: 1; \} \}/);
+    expect(svg.split('class="again"')[1].match(/>\d</g)).toEqual(['>1<', '>2<', '>3<', '>4<']);
     expect(svg).toMatch(/<desc[^>]*>Hi 1 2 3 4 5 6 7</);
     expect(render('about', (c) => { c.cards.about.lines = ['1', '2', '3']; })).not.toContain('@keyframes scroll');
     expect(render('about', (c) => { many(c); c.look.animations = false; })).not.toContain('class="scroll"');
@@ -130,8 +133,9 @@ describe('about', () => {
     const svg = render('about', (c) => { c.cards.about.headline = 'Hi'; c.cards.about.lines = [long, long]; c.cards.about.facts = { A: 'a', B: 'b' }; });
     expect(svg.match(/class="fact" style="animation-delay: [\d.]+s"/g)?.length).toBe(2);
     expect(svg).toContain('@keyframes fact');
-    // 3 rows for the lines: the second line, 2 rows, doesn't fit after the first and starts page 2
-    expect(svg).toContain('translateY(-66px)');
+    // 3 rows for the lines' 4: up one row
+    expect(svg).toContain('translateY(-22px)');
+    expect(svg).not.toContain('translateY(-44px)');
     const still = render('about', (c) => { c.cards.about.headline = 'Hi'; c.cards.about.lines = [long, long]; c.cards.about.facts = { A: 'a', B: 'b' }; c.look.animations = false; });
     expect(still).not.toContain('class="fact"');
     expect(still.match(/>A</g)?.length).toBe(1);

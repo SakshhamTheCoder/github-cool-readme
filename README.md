@@ -26,14 +26,12 @@ For details see [Setup](#setup).
 GitHub's own look: its fonts, colours and icons on a transparent background, following the viewer's light or dark theme. The default.
 
 ```yaml
+show: [summary, languages, contributions, weekly, streaks, about]
 look:
   style: classic
-cards:
-  summary:
-    ring: github        # the GitHub logo in the ring; leave out for the percentage
 ```
 
-With `color: amber`, `green`, `purple`, `cyan`, `red` or `blue` under `look`, the ring, the weekly bars and the streaks highlight take that colour.
+The summary's ring is your share of active days; `ring: github` under `cards: summary:` puts the GitHub logo there instead. With `color: amber`, `green`, `purple`, `cyan`, `red` or `blue` under `look`, the ring, the weekly bars, the streaks highlight and the about card's marked words take that colour.
 
 <p align="center">
 <picture>
@@ -55,10 +53,20 @@ With `color: amber`, `green`, `purple`, `cyan`, `red` or `blue` under `look`, th
   <img src="examples/cards/weekly-light.svg" width="400" alt="Weekly rhythm">
 </picture>
 </p>
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="examples/cards/streaks-dark.svg">
+  <img src="examples/cards/streaks-light.svg" width="400" alt="Streaks">
+</picture>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="examples/cards/about-dark.svg">
+  <img src="examples/cards/about-light.svg" width="400" alt="About">
+</picture>
+</p>
 
 ## Dot matrix and OLED cards
 
-The same numbers as pinball-style displays: big readable text in a dot font, one item at a time with pinball transitions. `style: dotmatrix` draws them in round LEDs over a faint grid of unlit ones; `style: oled` in square pixels. Their colour is GitHub's (the default), amber, green, purple, cyan, red or blue, on a transparent background or a colour of your own. The examples also have the GitHub logo in the summary's ring (`ring: github`).
+The same numbers as pinball-style displays: big readable text in a dot font, one item at a time with pinball transitions. `style: dotmatrix` draws them in round LEDs over a faint grid of unlit ones; `style: oled` in square pixels. Their colour is GitHub's (the default), amber, green, purple, cyan, red or blue, on a transparent background or a colour of your own.
 
 **Amber**, on a dark panel: the orange of a plasma display.
 
@@ -76,6 +84,10 @@ look:
 <p align="center">
 <img src="examples/dotmatrix-cards/contributions.svg" width="400" alt="Notable contributions">
 <img src="examples/dotmatrix-cards/weekly.svg" width="400" alt="Weekly rhythm">
+</p>
+<p align="center">
+<img src="examples/dotmatrix-cards/streaks.svg" width="400" alt="Streaks">
+<img src="examples/dotmatrix-cards/about.svg" width="400" alt="About">
 </p>
 
 **GitHub**: GitHub's own text and blue, on a transparent background, following the viewer's light or dark theme.
@@ -224,6 +236,7 @@ Needs Node 22.18 or newer (TypeScript runs directly, no build step).
 GITHUB_TOKEN=$(gh auth token) npm run dev   # fetch, render to out/, write out/preview.html
 npm run dev:offline                          # re-render from the saved data, no API calls
 npm run preview                              # every look in preview/*.yml, light and dark, in out/preview/index.html
+npm run examples                             # the README's cards in examples/, from the saved data
 npm test
 ```
 
