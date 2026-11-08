@@ -1255,7 +1255,7 @@ else
     run_id="$(cat "$WORK/run")"
     report started "the workflow"
     gh run watch "$run_id" -R "$PROFILE" --exit-status >/dev/null 2>&1 & pid=$!
-    wait_with_timer "$pid" "generating the cards, usually 1-3 minutes" && break
+    wait_with_timer "$pid" "generating the cards, usually 30-60 seconds" && break
     token_rejected "$run_id" || die "the workflow failed" "see: gh run view $run_id -R $PROFILE --log-failed"
     report failed "the workflow couldn't use your token: it expired, was revoked or lacks a scope"
     yesno "Replace it?" y || die "the cards can't be made with that token" "run this again when you have a new one"

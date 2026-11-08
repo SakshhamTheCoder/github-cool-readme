@@ -67,17 +67,24 @@ describe('streaks', () => {
     expect(svg).toMatch(/-opacity="0.6"/); // the average line
   });
 
-  it('slides between two pages on the classic card, each with its own bars, or stays on the first', () => {
+  it('slides on through three pages on the classic card, the green moving over the bars, or stays on the first', () => {
     const svg = render('streaks');
-    expect(svg).toContain('@keyframes cols');
-    expect(svg).toContain('class="page1"');
-    expect(svg).toContain('class="page2"');
+    // Always left, a column at a time, ending on page 1 again (its columns repeated) to start over unseen.
+    expect(svg).toMatch(/@keyframes cols \{.*translateX\(-180px\).*translateX\(-360px\).*100% \{ transform: translateX\(-540px\); \} \}/);
+    expect(svg.match(/>6 days</g)?.length).toBe(4); // the current and longest streaks (both 6 days), and their copies
+    // The bottom-left number is green while the graph is about it: longest streak, best month, per active day.
+    for (const [p, value] of [[0, '6 days'], [1, '39'], [2, '7'], [3, '6 days']]) expect(svg).toContain(`class="lit${p}" style="font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums;">${value}<`);
+    // The green bars show through rects that move between the pages; one per run of days above the average (Oct 8-10).
+    expect(svg).toContain('mask="url(#lit)"');
+    expect(svg.match(/<rect class="h\d+"/g)?.length).toBe(1);
+    expect(svg).toContain('class="avg"');
     const still = render('streaks', (c) => (c.look.animations = false));
     expect(still).not.toContain('class="cols"');
-    expect(still).not.toContain('page2');
-    expect(still.match(/fill="#2da44e"/g)?.length).toBe(1); // the longest streak's bars, in green
-    expect(still).toMatch(/fill: #2da44e;">6 days</); // and its number (the fixture's longest streak)
-    expect(svg).toMatch(/fill: #2da44e;">39</); // the best month's number, on page 2
+    expect(still).not.toContain('@keyframes');
+    expect(still).not.toContain('class="avg"');
+    expect(still.match(/fill: #2da44e;/g)?.length).toBe(1);
+    expect(still).toMatch(/fill: #2da44e;">6 days</); // the longest streak's number
+    expect(still).toContain('transform="translate(374 0) scale(6 1)"'); // over its days
   });
 
   it('is a 400 by 195 card', () => {
