@@ -5,7 +5,7 @@ import { CARDS, DEFAULT_CONFIG, parseConfig, type Config } from '../src/config.t
 import { renderAll } from '../src/render/index.ts';
 import { wrap } from '../src/display/about.ts';
 import { textCells } from '../src/display/font.ts';
-import { marked, markedText, unmarked } from '../src/render/svg.ts';
+import { marked, markedText, unmarked, wrapMarked } from '../src/render/svg.ts';
 import { streakDays, streakLengths, streakStats } from '../src/stats.ts';
 import { fixture } from './fixtures/snapshot.ts';
 
@@ -114,11 +114,28 @@ describe('about', () => {
     const many = (c: Config) => { c.cards.about.headline = 'Hi'; c.cards.about.lines = ['1', '2', '3', '4', '5', '6', '7']; };
     const svg = render('about', many);
     expect(svg).toContain('>7<');
-    // 4 rows in view under a headline: two pages, the second moved up so it's full (rows 4-7)
-    expect(svg).toMatch(/@keyframes scroll \{ 0.00%, [\d.]+% \{ transform: translateY\(-0px\); \} [\d.]+%, [\d.]+% \{ transform: translateY\(-66px\); \} 100%/);
+    // 4 rows in view under a headline: two pages of 4 rows, the second with 3
+    expect(svg).toMatch(/@keyframes scroll \{ 0.00%, [\d.]+% \{ transform: translateY\(-0px\); \} [\d.]+%, [\d.]+% \{ transform: translateY\(-88px\); \} 100%/);
     expect(svg).toMatch(/<desc[^>]*>Hi 1 2 3 4 5 6 7</);
     expect(render('about', (c) => { c.cards.about.lines = ['1', '2', '3']; })).not.toContain('@keyframes scroll');
     expect(render('about', (c) => { many(c); c.look.animations = false; })).not.toContain('class="scroll"');
+  });
+
+  it('wraps the lines, and with too much to fit keeps the bottom row for the facts, taking turns', () => {
+    expect(wrapMarked('one two *three four* five', (row) => row.length <= 9)).toEqual(['one two', '*three*', '*four* five']);
+    expect(wrapMarked('a *b c* d', (row) => row.length <= 3)).toEqual(['a *b*', '*c* d']); // the mark split over two rows
+    const long = 'word '.repeat(20).trim(); // two rows
+    const fits = render('about', (c) => { c.cards.about.headline = 'Hi'; c.cards.about.lines = [long]; c.cards.about.facts = { A: 'a', B: 'b' }; });
+    expect(fits).not.toContain('class="fact"'); // 2 rows and 2 facts: all 4 fit
+    const svg = render('about', (c) => { c.cards.about.headline = 'Hi'; c.cards.about.lines = [long, long]; c.cards.about.facts = { A: 'a', B: 'b' }; });
+    expect(svg.match(/class="fact" style="animation-delay: [\d.]+s"/g)?.length).toBe(2);
+    expect(svg).toContain('@keyframes fact');
+    // 3 rows for the lines: the second line, 2 rows, doesn't fit after the first and starts page 2
+    expect(svg).toContain('translateY(-66px)');
+    const still = render('about', (c) => { c.cards.about.headline = 'Hi'; c.cards.about.lines = [long, long]; c.cards.about.facts = { A: 'a', B: 'b' }; c.look.animations = false; });
+    expect(still).not.toContain('class="fact"');
+    expect(still.match(/>A</g)?.length).toBe(1);
+    expect(still).not.toContain('>B<'); // one fact, the first, without animations
   });
 
   it('puts words marked *like this* in the accent colour, without the asterisks', () => {

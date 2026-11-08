@@ -170,6 +170,40 @@ export function unmarked(text: string): string {
   return marked(text).map((p) => p.text).join('');
 }
 
+/**
+ * Text wrapped by words into rows that `fits`, each row with its own marks, so a marked phrase
+ * split over two rows is marked on both. A word longer than a row gets one to itself.
+ */
+export function wrapMarked(text: string, fits: (row: string) => boolean): string[] {
+  const chars: { ch: string; mark: boolean }[] = [];
+  for (const part of marked(text.trim().replace(/\s+/g, ' '))) for (const ch of part.text) chars.push({ ch, mark: part.mark });
+  const plain = chars.map((c) => c.ch).join('');
+  // Rows as [start, end) in plain, broken at spaces.
+  const rows: [number, number][] = [];
+  let start = 0;
+  let end = 0;
+  for (const word of plain.matchAll(/\S+/g)) {
+    const wordEnd = word.index + word[0].length;
+    if (end > start && !fits(plain.slice(start, wordEnd))) {
+      rows.push([start, end]);
+      start = word.index;
+    }
+    end = wordEnd;
+  }
+  if (end > start) rows.push([start, end]);
+  // Each row's text again, with * around its marked runs.
+  return rows.map(([from, to]) => {
+    let out = '';
+    for (let i = from; i < to; i++) {
+      const c = chars[i];
+      if (c.mark && (i === from || !chars[i - 1].mark)) out += '*';
+      out += c.ch;
+      if (c.mark && (i === to - 1 || !chars[i + 1].mark)) out += '*';
+    }
+    return out;
+  });
+}
+
 /** A text element's content: the text cut to fit like `truncate`, its marked parts in `colour`. */
 export function markedText(text: string, maxWidth: number, fontSize: number, colour: string, bold = false): string {
   const parts = marked(text);

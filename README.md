@@ -208,7 +208,7 @@ cards:
   about:
     title: About
     headline: null        # shown large; *words* like these in the accent colour, here and below
-    lines: []             # a line each; they're not wrapped, and more than fit scroll past
+    lines: []             # a line each, wrapped; more than fit scroll past, the facts taking turns under them
     facts: {}             # label: text, a line each under the lines
 ```
 
@@ -223,7 +223,7 @@ Needs Node 22.18 or newer (TypeScript runs directly, no build step).
 ```bash
 GITHUB_TOKEN=$(gh auth token) npm run dev   # fetch, render to out/, write out/preview.html
 npm run dev:offline                          # re-render from the saved data, no API calls
-npm run preview:oled                         # every dot matrix and OLED look side by side, in out/display/
+npm run preview                              # every look in preview/*.yml, light and dark, in out/preview/index.html
 npm test
 ```
 

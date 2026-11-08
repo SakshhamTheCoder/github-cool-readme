@@ -1,0 +1,19 @@
+# Preview: npm run preview, then open out/preview/index.html
+show: [summary, languages, contributions, weekly, streaks, about]
+look:
+  style: classic
+  color: amber
+  background: none
+cards:
+  about:
+    headline: "Hi, I'm *Pedro*"
+    lines:
+      - "I create professional cloud infra, CI/CD, and code, mostly backend (Java)."
+      - "I also like telemetry and observability."
+      - "I've been diving into creating native ports of classic games, adding improvements and additional features."
+      - "I also fly airplanes, go offroad for wild camping and race go-karts competitively."
+    facts:
+      "Est": "1981"
+      "Based in": "Santarém"
+  summary:
+    ring: github

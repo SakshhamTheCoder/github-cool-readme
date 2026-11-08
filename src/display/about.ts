@@ -12,7 +12,7 @@ import { slideshow, type Item } from './slides.ts';
 const WIDE = COLS - 8; // dot columns for text
 const LINE = 10; // rows from one line of text to the next
 const AREA = { top: 13, bottom: 67 }; // under the title line; each slide is centred in it
-const MAX_LINES = 4;
+const MAX_LINES = 5;
 
 /** Words in lines that fit `cols` dot columns; a word too long for a line is cut. */
 export function wrap(text: string, cols: number): string[] {
