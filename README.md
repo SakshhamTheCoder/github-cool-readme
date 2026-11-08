@@ -155,7 +155,7 @@ look:
 
 - Commits, pull requests, issues, reviews: GitHub's contributions API, with the same rules as the contribution graph on your profile. Without the token's `read:user` scope it hides private work.
 - Notable contributions: your list of pull requests.
-- Stars: the current total on your repos (forks left out), and how many of those were given in the last 12 months.
+- Stars: the current total on your repos (forks left out), and how many of those were given in the last 12 months. Projects you maintain in an organization are not yours to GitHub, so name them in `count: extraRepos:` to include them.
 - Active days, weekly rhythm, streaks: your contribution calendar. The `count` settings can't filter it.
 
 Repos you can no longer access (e.g. a former employer's) can't be counted.
@@ -198,6 +198,7 @@ show: [summary, languages, contributions, weekly]   # the cards, in README order
 count:
   private: true           # private repos in the numbers
   orgs: true              # repos of organizations you belong to
+  extraRepos: []          # "owner/repo" of projects you maintain in an organization: their stars count as yours
 
 look:
   style: classic          # classic, oled (square pixels) or dotmatrix (round LEDs)

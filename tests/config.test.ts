@@ -9,10 +9,17 @@ describe('config', () => {
 
   it('merges settings over the defaults', () => {
     const c = parseConfig('count:\n  orgs: false\ncards:\n  languages:\n    repos:\n      big: 0.5\n');
-    expect(c.count).toEqual({ private: true, orgs: false });
+    expect(c.count).toEqual({ private: true, orgs: false, extraRepos: [] });
     expect(c.cards.languages.count).toBe(6);
     expect(c.cards.languages.repos).toEqual({ big: 0.5 });
     expect(c.look).toEqual(DEFAULT_CONFIG.look);
+  });
+
+  it('reads the extra repos whose stars count, each as owner/repo', () => {
+    expect(parseConfig('').count.extraRepos).toEqual([]);
+    expect(parseConfig('count:\n  extraRepos: [org/app, me/lib.js]\n').count.extraRepos).toEqual(['org/app', 'me/lib.js']);
+    expect(() => parseConfig('count:\n  extraRepos: [app]\n')).toThrow('"count.extraRepos" has "app"; write each as owner/repo');
+    expect(() => parseConfig('count:\n  extraRepos: org/app\n')).toThrow('"count.extraRepos" must be a list of strings');
   });
 
   it('rejects unknown settings, so typos do not pass silently', () => {
@@ -72,7 +79,7 @@ describe('the settings from before v1.5', () => {
     );
     expect(c.user).toBe('octo');
     expect(c.show).toEqual(['weekly', 'summary']);
-    expect(c.count).toEqual({ private: true, orgs: false });
+    expect(c.count).toEqual({ private: true, orgs: false, extraRepos: [] });
     expect(c.look).toEqual({ style: 'classic', color: 'github', animations: false, background: 'none', border: true });
     expect(c.cards.summary.ring).toBe('github');
     // Left out was the same as a weight of 0, and wins over a weight.

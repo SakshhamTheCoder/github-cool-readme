@@ -162,6 +162,21 @@ export async function collect(client: Client, config: Config, log: (msg: string)
     after = res.user.repositories.pageInfo.endCursor;
   }
 
+  // Projects you maintain in an organization are not "owned" by you, so they are listed in the settings.
+  for (const full of config.count.extraRepos) {
+    const [owner, name] = full.split('/');
+    const res = await client.query<{ repository: RawRepo | null }>(
+      `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { ${REPO_FIELDS} } }`,
+      { owner, name },
+    );
+    if (!res.repository) {
+      log(`note: count.extraRepos: "${full}" was not found or is not visible to the token`);
+      continue;
+    }
+    const key = remember(res.repository);
+    if (!ownedRepos.includes(key)) ownedRepos.push(key);
+  }
+
   // Contributions: the last 12 months, and every calendar year since you joined.
   let calendar: Snapshot['calendar'] = [];
   const fetchWindow = async (range: { from: Date; to: Date }, withCalendar: boolean): Promise<ContributionWindow> => {

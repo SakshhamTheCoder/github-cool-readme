@@ -22,6 +22,8 @@ export interface Config {
     private: boolean;
     /** Repositories of organizations you belong to. */
     orgs: boolean;
+    /** "owner/repo" of projects you maintain outside your own account (in an organization): their stars count as yours. */
+    extraRepos: string[];
   };
   look: {
     /** classic: GitHub-style cards. oled: displays of square pixels. dotmatrix: of round LEDs. */
@@ -82,7 +84,7 @@ export interface Config {
 export const DEFAULT_CONFIG: Config = {
   user: null,
   show: [...DEFAULT_CARDS],
-  count: { private: true, orgs: true },
+  count: { private: true, orgs: true, extraRepos: [] },
   look: { style: 'classic', color: 'github', animations: true, background: 'none', border: false },
   cards: {
     summary: { title: null, ring: 'percent' },
@@ -101,7 +103,7 @@ type Shape = { [key: string]: 'boolean' | 'string' | 'string?' | 'number' | 'str
 const SHAPE: Shape = {
   user: 'string?',
   show: 'string[]',
-  count: { private: 'boolean', orgs: 'boolean' },
+  count: { private: 'boolean', orgs: 'boolean', extraRepos: 'string[]' },
   look: { style: 'string', color: 'string', animations: 'boolean', background: 'string', border: 'boolean' },
   cards: {
     summary: { title: 'string?', ring: 'string' },
@@ -277,6 +279,9 @@ export function parseConfig(text: string): Config {
     }
   }
   if (new Set(config.show).size !== config.show.length) throw new ConfigError('"show" names a card twice');
+  for (const ref of config.count.extraRepos) {
+    if (!/^[\w.-]+\/[\w.-]+$/.test(ref)) throw new ConfigError(`"count.extraRepos" has "${ref}"; write each as owner/repo`);
+  }
   if (config.cards.summary.ring !== 'percent' && config.cards.summary.ring !== 'github') {
     throw new ConfigError('"cards.summary.ring" must be "percent" or "github"');
   }
