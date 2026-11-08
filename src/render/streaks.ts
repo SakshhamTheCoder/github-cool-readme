@@ -2,8 +2,7 @@
 // slide left one at a time, always the same way, so each page brings in one more column:
 //   page 1: the streaks and the bests; the bars light the longest streak
 //   page 2: the bests and the active days; the bars light the best month
-//   page 3: the active days and the streaks again; the bars light the days above the average,
-//           with the average as a dotted line
+//   page 3: the active days and the streaks again; the bars light the active days
 // then on to page 1. The graph is always about the number at the bottom left, which is in green, and
 // its green moves over the bars to the next page's days, spreading out or gathering in.
 import type { Config } from '../config.ts';
@@ -15,8 +14,11 @@ const ROW = 46;
 const BARS = { width: WIDTH - 2 * PAD, base: CARD_HEIGHT - 16, height: 30 };
 const HOLD = 4; // seconds a page stays
 const MOVE = 0.8; // seconds to slide to the next page
-/** The columns of tiles (pairs of them) left to right: the streaks, the bests, the active days. */
-const ORDER = [0, 2, 1];
+/**
+ * The columns left to right, each the tiles top and bottom: the streaks, the bests, and per active
+ * day over the active days, so the bottom one is what the bars show.
+ */
+const ORDER: [number, number][] = [[0, 1], [4, 5], [3, 2]];
 
 /** Where a highlight is over the bars: a left edge and a width, in px. */
 type Span = { x: number; w: number };
@@ -37,21 +39,19 @@ export function renderStreaks(tiles: Tile[], sd: StreakDays, theme: Theme, confi
   const span = (first: number, last: number): Span => ({ x: px(left + first * day), w: px((last - first + 1) * day) });
   const nowhere: Span = { x: px(PAD + BARS.width), w: 0 };
 
-  // What each page lights: the longest streak, the best month, the days above the average. The
+  // What each page lights: the longest streak, the best month, the active days. The
   // last can be many runs of days; on the other pages they all sit on the one run.
-  const active = sd.days.filter((d) => d.count > 0);
-  const average = active.length ? active.reduce((s, d) => s + d.count, 0) / active.length : 0;
   const month = sd.bestMonth ? sd.days.map((d, i) => (d.date.startsWith(sd.bestMonth!) ? i : -1)).filter((i) => i >= 0) : [];
-  const above: Span[] = [];
+  const runs: Span[] = [];
   sd.days.forEach((d, i) => {
-    if (d.count <= average || !active.length) return;
-    const previous = above.at(-1);
-    if (previous && i > 0 && sd.days[i - 1].count > average) previous.w = px(previous.w + day);
-    else above.push(span(i, i));
+    if (!d.count) return;
+    const previous = runs.at(-1);
+    if (previous && i > 0 && sd.days[i - 1].count) previous.w = px(previous.w + day);
+    else runs.push(span(i, i));
   });
   const longest = sd.longest ? span(...sd.longest) : nowhere;
   const best = month.length ? span(month[0], month[month.length - 1]) : nowhere;
-  const spreads = above.length ? above : [{ x: px(best.x + best.w / 2), w: 0 }];
+  const spreads = runs.length ? runs : [{ x: px(best.x + best.w / 2), w: 0 }];
 
   // The numbers, column by column; with animations the first two columns again after the third, so
   // the slide can go on to page 1 and start over unseen.
@@ -59,7 +59,7 @@ export function renderStreaks(tiles: Tile[], sd: StreakDays, theme: Theme, confi
   const numbers = positions
     .flatMap((column, p) =>
       [0, 1].map((row) => {
-        const t = tiles[column * 2 + row];
+        const t = tiles[column[row]];
         if (!t) return '';
         // The bottom number of each column the graph is about at some page: in green while it is.
         const graphed = row === 1 && p <= 3;
@@ -83,7 +83,6 @@ export function renderStreaks(tiles: Tile[], sd: StreakDays, theme: Theme, confi
   const rects = spreads
     .map((_, r) => `<rect${animate ? ` class="h${r}"` : ''} y="${top}" width="1" height="${BARS.height + 2}" fill="#fff" transform="translate(${longest.x} 0) scale(${longest.w} 1)"/>`)
     .join('');
-  const avgY = BARS.base - (average ? height(average) : 0) + 0.5;
   let body =
     `<clipPath id="cols"><rect x="${PAD}" y="0" width="${BARS.width}" height="${CARD_HEIGHT}"/></clipPath>` +
     `<mask id="lit" maskUnits="userSpaceOnUse" x="0" y="0" width="${WIDTH}" height="${CARD_HEIGHT}">${rects}</mask>` +
@@ -106,14 +105,12 @@ export function renderStreaks(tiles: Tile[], sd: StreakDays, theme: Theme, confi
       `\n  .lit1 { animation: lit1 ${ease}; } @keyframes lit1 { 0%, ${a} ${plain} ${b}, ${c} ${green} ${d}, 100% ${plain} }` +
       `\n  .lit2 { animation: lit2 ${ease}; } @keyframes lit2 { 0%, ${c} ${plain} ${d}, ${e} ${green} 100% ${plain} }` +
       `\n  .lit3 { animation: lit3 ${ease}; } @keyframes lit3 { 0%, ${e} ${plain} 100% ${green} }` +
-      `\n  .avg { opacity: 0; animation: avg ${ease}; } @keyframes avg { 0%, ${c} { opacity: 0; } ${d}, ${e} { opacity: 1; } 100% { opacity: 0; } }` +
       spreads
         .map(
           (s, r) =>
             `\n  .h${r} { animation: h${r} ${ease}; } @keyframes h${r} { 0%, ${a} { transform: ${at(longest)}; } ${b}, ${c} { transform: ${at(best)}; } ${d}, ${e} { transform: ${at(s)}; } 100% { transform: ${at(longest)}; } }`,
         )
         .join('');
-    if (average) body += `<path class="avg" d="M${PAD} ${avgY}h${BARS.width}" stroke="${theme.highlight}" stroke-dasharray="2 2"/>`;
   }
 
   return card({
