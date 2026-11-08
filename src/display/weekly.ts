@@ -1,24 +1,24 @@
-// Weekly rhythm as a pinball-style display: all seven days in a row, three in view, scrolling
-// slowly from Monday to Sunday, then snapping off and dissolving back in at the start, like the
-// summary's slides. Bars without numbers.
+// Weekly rhythm as a pinball-style display, like the classic card: the seven days' bars on the left,
+// and on the right the busiest day, the quietest and how much is on weekdays. It dissolves in,
+// stays, and snaps off to dissolve in again.
 
-import type { WeekdayItem } from '../compute.ts';
+import { weekdayFacts, type WeekdayItem } from '../compute.ts';
 import { textCells, textWidth } from './font.ts';
-import { COLS, H, PITCH, W, drawDots, frame, keyframes, maskPath, path, type Cell, type Look, type Style } from './dmd.ts';
+import { H, PITCH, W, drawDots, frame, keyframes, maskPath, path, type Cell, type Style } from './dmd.ts';
 import { titleLine } from './languages.ts';
 import { sparkleTiles } from './slides.ts';
 
-const SLOT = COLS / 3; // columns per day: three days in view
-const BAR_COLS = 16;
-const BASE = 52; // the bars stand on this row
-const MAX_ROWS = 35;
-const LABEL_ROW = 57;
+const SLOT = 12; // columns per day
+const BAR_COLS = 8;
+const BASE = 58; // the bars stand on this row
+const MAX_ROWS = 43;
+const LABEL_ROW = 61;
+const STATS_COL = 4 + 7 * SLOT + 8;
+const STAT_ROWS = [12, 29, 46]; // each a label, and its value 8 rows under it: the three centred on the bars
 
 // The loop, in seconds.
 const SPARKLE = 0.6; // dots switching on in random order
-const HOLD_START = 2.5;
-const SCROLL = 6; // one dot column every 30ms
-const HOLD_END = 2;
+const HOLD = 10;
 const GROUPS = 6;
 
 export function renderDisplayWeekly(days: WeekdayItem[], title: string | null, style: Style): string {
@@ -33,27 +33,32 @@ export function renderDisplayWeekly(days: WeekdayItem[], title: string | null, s
     });
   }
 
+  // The bars, each with its day's first letter under it.
   const bars: Cell[] = [];
   const labels: Cell[] = [];
   days.forEach((d, k) => {
-    const center = k * SLOT + SLOT / 2;
+    const center = 4 + k * SLOT + SLOT / 2;
     const rows = d.count ? Math.max(1, Math.round((d.count / max) * MAX_ROWS)) : 0;
     for (let r = BASE - rows; r < BASE; r++) for (let c = 0; c < BAR_COLS; c++) bars.push([Math.round(center - BAR_COLS / 2) + c, r]);
-    const label = d.day.toUpperCase();
+    const label = d.day[0].toUpperCase();
     labels.push(...textCells(label, Math.round(center - textWidth(label) / 2), LABEL_ROW));
   });
 
-  const distance = Math.round((days.length - 3) * SLOT) * PITCH;
-  const total = SPARKLE + HOLD_START + SCROLL + HOLD_END;
-  const scrollStart = SPARKLE + HOLD_START;
-  let css =
-    `\n  .strip { animation: strip ${total}s infinite; }` +
-    keyframes('strip', total, [
-      { t: 0, css: 'transform: translateX(0);' },
-      { t: scrollStart, css: 'transform: translateX(0);', ease: `steps(${distance / PITCH})` },
-      { t: scrollStart + SCROLL, css: `transform: translateX(-${distance}px);` },
-      { t: total, css: `transform: translateX(-${distance}px);` },
-    ]);
+  // The numbers: what each is, dimmed, and the value under it.
+  const facts = weekdayFacts(days);
+  const values: Cell[] = [];
+  const names: Cell[] = [];
+  [
+    [facts.busiest.day, 'BUSIEST'],
+    [facts.quietest.day, 'QUIETEST'],
+    [`${facts.weekdays}%`, 'WEEKDAYS'],
+  ].forEach(([value, name], i) => {
+    names.push(...textCells(name, STATS_COL, STAT_ROWS[i]));
+    values.push(...textCells(value.toUpperCase(), STATS_COL, STAT_ROWS[i] + 8));
+  });
+
+  const total = SPARKLE + HOLD;
+  let css = '';
 
   // Dissolve in: random groups of dots switch on one after another; at the end all switch off at once.
   const groups = sparkleTiles(GROUPS);
@@ -82,12 +87,15 @@ export function renderDisplayWeekly(days: WeekdayItem[], title: string | null, s
       { t: total, css: 'opacity: 0;' },
     ]);
   });
-  const clip = `<clipPath id="wview"><rect x="0" y="${12 * PITCH}" width="${W}" height="${H - 12 * PITCH}"/></clipPath>`;
 
   return frame({
     width: W, height: H, title: title ?? 'Weekly rhythm',
-    desc: `Contributions per weekday over the last 12 months: ${days.map((d) => `${d.day} ${d.count}`).join(', ')}.`,
+    desc:
+      `Contributions per weekday over the last 12 months: ${days.map((d) => `${d.day} ${d.count}`).join(', ')}. ` +
+      `Busiest: ${facts.busiest.day}. Quietest: ${facts.quietest.day}. On weekdays: ${facts.weekdays}%.`,
     ...style, css,
-    body: `<defs>${clip}${patterns}${sparkle}</defs>\n${header}\n<g clip-path="url(#wview)" mask="url(#wsp)"><g class="strip">${path(bars, look.accent)}${path(labels, look.lit, `fill-opacity="${look.dim}"`)}</g></g>`,
+    body:
+      `<defs>${patterns}${sparkle}</defs>\n${header}\n<g mask="url(#wsp)">${path(bars, look.accent)}` +
+      `${path(labels, look.lit, `fill-opacity="${look.dim}"`)}${path(values, look.lit)}${path(names, look.lit, `fill-opacity="${look.dim}"`)}</g>`,
   });
 }

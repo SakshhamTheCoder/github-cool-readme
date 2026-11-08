@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compute } from '../src/compute.ts';
+import { compute, weekdayFacts } from '../src/compute.ts';
 import { DEFAULT_CONFIG, type Config } from '../src/config.ts';
 import { describe as describeItem, pageOffsets, renderContributions } from '../src/render/contributions.ts';
 import { renderAll } from '../src/render/index.ts';
@@ -119,6 +119,21 @@ describe('cards', () => {
     for (const svg of Object.values(render((c) => (c.look.animations = false)))) {
       expect(svg).not.toContain('@keyframes');
       expect(svg).not.toContain('animation-delay');
+    }
+  });
+
+  it('puts the busiest and quietest day and the weekdays share beside the weekly bars, in every style', () => {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => ({ day, count: [4, 5, 6, 7, 8, 9, 1][i] }));
+    expect(weekdayFacts(days)).toMatchObject({ busiest: { day: 'Sat' }, quietest: { day: 'Sun' }, weekdays: 75 }); // 30 of 40
+    expect(weekdayFacts(days.map((d) => ({ ...d, count: 0 }))).weekdays).toBe(0);
+    const svg = render()['weekly-light.svg']; // the fixture: Mon 4 to Sat 9, Sun 0
+    expect(svg).toContain('>Saturday<');
+    expect(svg).toContain('>Busiest day · 9<');
+    expect(svg).toContain('>On weekdays<');
+    for (const style of ['oled', 'dotmatrix'] as const) {
+      const display = render((c) => (c.look.style = style))['weekly-dark.svg'];
+      expect(display).toContain('Busiest: Sat.');
+      assertWellFormed(display);
     }
   });
 
