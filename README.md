@@ -126,13 +126,13 @@ look:
 </picture>
 </p>
 
-**OLED**: square pixels, in any colour.
+**OLED**: square pixels, in any colour; here purple on a dark panel.
 
 ```yaml
 look:
   style: oled
-  color: amber
-  background: 0d0b07
+  color: purple
+  background: 0b0710
 ```
 
 <p align="center">
