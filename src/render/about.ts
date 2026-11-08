@@ -1,9 +1,9 @@
 // About: a headline, then lines of your own text and facts, all from the settings. When there
 // are more lines and facts than fit, they scroll up a page at a time, like the notable
-// contributions; the headline stays. An SVG in a README can't hold working links, so those go
+// contributions; the headline stays. Words marked *like this* are in the colour's emphasis. An SVG in a README can't hold working links, so those go
 // under the card.
 import type { Config } from '../config.ts';
-import { CAPS, CARD_HEIGHT, CONTENT_TOP, PAD, TEXT, WIDTH, card, esc, fadeIn, headerText, pageOffsets, scrolling, textWidth, truncate, type Theme } from './svg.ts';
+import { CAPS, CARD_HEIGHT, CONTENT_TOP, PAD, TEXT, WIDTH, card, esc, fadeIn, headerText, markedText, pageOffsets, scrolling, textWidth, unmarked, type Theme } from './svg.ts';
 
 const ROOM = 430; // in textWidth's estimate, which runs wide: the card's 360px of text
 const HEADLINE = 22;
@@ -24,17 +24,17 @@ export function renderAbout(theme: Theme, config: Config): string {
   // The headline, if any, stays at the top.
   const top = CONTENT_TOP + (headline ? 48 : 14); // the first row's baseline
   const head = headline
-    ? fadeIn(PAD, CONTENT_TOP + 20, 0, `<text style="font-size: ${HEADLINE}px; font-weight: 700;">${esc(truncate(headline, ROOM * (TEXT / HEADLINE), HEADLINE, true))}</text>`, config)
+    ? fadeIn(PAD, CONTENT_TOP + 20, 0, `<text style="font-size: ${HEADLINE}px; font-weight: 700;">${markedText(headline, ROOM * (TEXT / HEADLINE), HEADLINE, theme.emphasis, true)}</text>`, config)
     : '';
 
   // Then a row each: the lines, then the facts, their text lined up after the longest label.
   const gap = Math.max(0, ...entries.map(([label]) => textWidth(label.toUpperCase(), CAPS))) + 12;
   const rows = [
-    ...lines.map((line) => `<text class="label secondary">${esc(truncate(line, ROOM, TEXT))}</text>`),
+    ...lines.map((line) => `<text class="label secondary">${markedText(line, ROOM, TEXT, theme.emphasis)}</text>`),
     ...entries.map(
       ([label, text]) =>
         `<text class="col">${esc(label.toUpperCase())}</text>` +
-        `<text x="${gap.toFixed(0)}" class="label">${esc(truncate(text, ROOM - gap, TEXT))}</text>`,
+        `<text x="${gap.toFixed(0)}" class="label">${markedText(text, ROOM - gap, TEXT, theme.emphasis)}</text>`,
     ),
   ].map((row, i) => fadeIn(PAD, top + i * LINE, i + 1, row, config));
 
@@ -47,7 +47,7 @@ export function renderAbout(theme: Theme, config: Config): string {
     width: WIDTH,
     height: CARD_HEIGHT,
     title: title ?? 'About',
-    desc: [headline, ...lines, ...entries.map(([label, text]) => `${label}: ${text}`)].filter(Boolean).join(' '),
+    desc: [headline, ...lines, ...entries.map(([label, text]) => `${label}: ${text}`)].filter(Boolean).map((t) => unmarked(t!)).join(' '),
     theme,
     config,
     css: scrolls ? scrolling('scroll', pageOffsets(rows.length, visible, LINE)) : '',

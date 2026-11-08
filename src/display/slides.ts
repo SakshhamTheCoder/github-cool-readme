@@ -12,7 +12,7 @@ export const ENTER = 0.6; // seconds an entrance takes
 
 /** Something on a slide: text in the dot font, or ready-made cells (bars and such). */
 export type Item =
-  | { text: string; col: number; row: number; scale?: number; dim?: boolean; shine?: boolean }
+  | { text: string; col: number; row: number; scale?: number; dim?: boolean; shine?: boolean; accent?: boolean }
   | { cells: Cell[]; dim?: boolean; fill?: string; opacity?: number };
 
 export interface Region {
@@ -55,10 +55,10 @@ export function slideshow(id: string, slides: Item[][], region: Region, look: Lo
   const pushRows = region.rows;
   const animated = slides.length > 1;
 
-  const draw = (item: Item, fill = look.lit) =>
+  const draw = (item: Item, fill?: string) =>
     'text' in item
-      ? path(textCells(item.text, item.col, item.row, item.scale ?? 1), fill, item.dim ? `fill-opacity="${look.dim}"` : '')
-      : path(item.cells, item.fill ?? fill, item.opacity !== undefined ? `fill-opacity="${item.opacity}"` : item.dim ? `fill-opacity="${look.dim}"` : '');
+      ? path(textCells(item.text, item.col, item.row, item.scale ?? 1), fill ?? (item.accent ? look.accent : look.lit), item.dim ? `fill-opacity="${look.dim}"` : '')
+      : path(item.cells, item.fill ?? fill ?? look.lit, item.opacity !== undefined ? `fill-opacity="${item.opacity}"` : item.dim ? `fill-opacity="${look.dim}"` : '');
 
   const markup = slides.map((items, i) => {
     let content = items.map((it) => draw(it)).join('');
@@ -110,9 +110,9 @@ export function slideshow(id: string, slides: Item[][], region: Region, look: Lo
 
     if (effect === 'type') {
       // Typewriter: text one character at a time; everything else appears straight away.
-      const chars: { cells: Cell[]; dim: boolean }[] = [];
+      const chars: { cells: Cell[]; dim: boolean; accent: boolean }[] = [];
       for (const it of items) {
-        if ('text' in it) for (const cells of charCells(it.text, it.col, it.row, it.scale ?? 1)) chars.push({ cells, dim: !!it.dim });
+        if ('text' in it) for (const cells of charCells(it.text, it.col, it.row, it.scale ?? 1)) chars.push({ cells, dim: !!it.dim, accent: !!it.accent });
       }
       const step = (ENTER * 1.6) / Math.max(1, chars.length);
       content =
@@ -126,7 +126,7 @@ export function slideshow(id: string, slides: Item[][], region: Region, look: Lo
               { t: total - 0.001, css: 'opacity: 1;', ease: 'steps(1, end)' },
               { t: total, css: 'opacity: 0;' },
             ]);
-            return path(ch.cells, look.lit, `class="${P}t${i}c${j}"${ch.dim ? ` fill-opacity="${look.dim}"` : ''}`);
+            return path(ch.cells, ch.accent ? look.accent : look.lit, `class="${P}t${i}c${j}"${ch.dim ? ` fill-opacity="${look.dim}"` : ''}`);
           })
           .join('');
     }

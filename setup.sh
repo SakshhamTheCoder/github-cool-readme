@@ -528,7 +528,7 @@ about_set() { # about_set file block: the about section under cards: replaced by
   rm -f "$block"
 }
 about_placeholder() {
-  echo "    headline: null        # shown large, e.g. \"Hi, I'm $LOGIN\""
+  echo "    headline: null        # shown large, e.g. \"Hi, I'm *$LOGIN*\"; *words* in the accent colour"
   echo "    lines: []             # a line each, e.g. [\"I build developer tools.\"]"
   echo "    facts: {}             # label: text, e.g. { Focus: Rust, Based in: Lisbon }"
 }
@@ -545,7 +545,8 @@ write_about() { # asks for the headline, lines and facts, and writes them under 
   local name hello headline block="" n label text
   name="$(gh api user --jq '.name // empty' 2>/dev/null || true)"
   name="${name%% *}"; name="${name:-$LOGIN}"
-  hello="Hi, I'm $name"
+  hello="Hi, I'm *$name*"
+  note "$(paint 2 "words between asterisks, like *$name*, are in the accent colour")"
   ask_text "headline, shown large $(paint 2 "[$hello; - for none]"):"
   headline="${ANSWER:-$hello}"
   [ "$headline" = "-" ] || block="    headline: $(quoted "$headline")"
@@ -1008,7 +1009,7 @@ else
   if card_on about && $OLD_KEPT && ! grep -q '^about:' "$CONFIG"; then
     {
       echo "about:                  # the about card's text"
-      echo "  headline: null        # shown large, e.g. \"Hi, I'm $LOGIN\""
+      echo "  headline: null        # shown large, e.g. \"Hi, I'm *$LOGIN*\"; *words* in the accent colour"
       echo "  lines: []             # a line each, e.g. [\"I build developer tools.\"]"
       echo "  facts: {}             # label: text, e.g. { Focus: Rust, Based in: Lisbon }"
     } >> "$CONFIG"

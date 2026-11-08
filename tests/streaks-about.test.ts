@@ -5,6 +5,7 @@ import { CARDS, DEFAULT_CONFIG, parseConfig, type Config } from '../src/config.t
 import { renderAll } from '../src/render/index.ts';
 import { wrap } from '../src/display/about.ts';
 import { textCells } from '../src/display/font.ts';
+import { marked, markedText, unmarked } from '../src/render/svg.ts';
 import { streakDays, streakLengths, streakStats } from '../src/stats.ts';
 import { fixture } from './fixtures/snapshot.ts';
 
@@ -120,6 +121,20 @@ describe('about', () => {
     expect(render('about', (c) => { many(c); c.look.animations = false; })).not.toContain('class="scroll"');
   });
 
+  it('puts words marked *like this* in the accent colour, without the asterisks', () => {
+    expect(marked("Hi, I'm *Pedro*")).toEqual([{ text: "Hi, I'm ", mark: false }, { text: 'Pedro', mark: true }]);
+    expect(marked('2 * 3 = 6')).toEqual([{ text: '2 * 3 = 6', mark: false }]); // a lone * stays
+    expect(unmarked('*a* b *c*')).toBe('a b c');
+    const svg = render('about', (c) => { c.cards.about.headline = "Hi, I'm *Pedro*"; c.cards.about.lines = ['I like *retro* games']; });
+    expect(svg).toContain('Hi, I&#39;m <tspan fill="#0969da">Pedro</tspan>');
+    expect(svg).toContain('I like <tspan fill="#0969da">retro</tspan> games');
+    expect(svg).toMatch(/<desc[^>]*>Hi, I&#39;m Pedro I like retro games</);
+    // A colour's marked words are in its highlight, dark enough to read on white.
+    expect(render('about', (c) => { c.look.color = 'amber'; c.cards.about.headline = 'Hi *there*'; })).toContain('<tspan fill="#b35c00">there</tspan>');
+    // Cut to fit, the mark stays on what's left.
+    expect(markedText(`*${'x'.repeat(200)}*`, 100, 14, '#f00')).toMatch(/^<tspan fill="#f00">x+<\/tspan>…$/);
+  });
+
   it('escapes the text, and says so when empty', () => {
     expect(render('about', (c) => (c.cards.about.lines = ['a <b> & c']))).toContain('a &#60;b&#62; &#38; c');
     const empty = render('about');
@@ -161,6 +176,22 @@ describe('the oled about card', () => {
     for (const ch of [...'&@#";=:\'']) expect(textCells(ch, 0, 0)).not.toEqual(textCells('?', 0, 0));
     const c = parseConfig('style: oled\ncards: [about]\n');
     expect(renderAll(compute(fixture(), c), c)['about-dark.svg']).toContain('Nothing here yet');
+  });
+
+  it('lights marked words in the accent colour, or brighter than the rest on a one-colour display', () => {
+    const svg = (color: string) => {
+      const c = parseConfig(`look:\n  style: dotmatrix\n  color: ${color}\nshow: [about]\ncards:\n  about:\n    headline: "Hi *Pedro*"\n`);
+      return renderAll(compute(fixture(), c), c)['about-dark.svg'];
+    };
+    expect(svg('github')).toContain('#4493f8'); // github's accent, for PEDRO
+    expect(svg('github')).not.toMatch(/Hi \*|\*Pedro/);
+    // amber: the same colour, HI dimmed; its letters where they'd be in the whole line
+    const amber = svg('amber');
+    expect(amber).toMatch(/stroke-opacity="0.55"/);
+    const plain = parseConfig('look:\n  style: dotmatrix\n  color: amber\nshow: [about]\ncards:\n  about:\n    headline: "Hi Pedro"\n');
+    const unmarkedSvg = renderAll(compute(fixture(), plain), plain)['about-dark.svg'];
+    const dots = (s: string) => (s.match(/M[\d.]+ [\d.]+h/g) ?? []).sort().join();
+    expect(dots(amber)).toBe(dots(unmarkedSvg));
   });
 
   it('sweeps the headline shine right off the card, so none of it stays over the text', () => {

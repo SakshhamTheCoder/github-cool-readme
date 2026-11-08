@@ -16,6 +16,8 @@ export interface Theme {
   heat: [string, string, string, string];
   /** GitHub's success green, readable as text: what a graph highlights, and its number. */
   highlight: string;
+  /** Words marked *like this* in the about card's text. */
+  emphasis: string;
 }
 
 // GitHub's own Primer colors, so the cards sit naturally on the profile page.
@@ -31,6 +33,7 @@ export const THEMES: Record<Mode, Theme> = {
     neutral: '#8c959f',
     heat: ['#216e39', '#30a14e', '#40c463', '#9be9a8'],
     highlight: '#2da44e',
+    emphasis: '#0969da',
   },
   dark: {
     background: '#0d1117',
@@ -43,6 +46,7 @@ export const THEMES: Record<Mode, Theme> = {
     neutral: '#6e7681',
     heat: ['#0e4429', '#006d32', '#26a641', '#39d353'],
     highlight: '#3fb950',
+    emphasis: '#4493f8',
   },
 };
 
@@ -81,7 +85,8 @@ const TINTS: Record<'amber' | 'green' | 'purple' | 'cyan' | 'red' | 'blue', Reco
 
 /** The classic cards' colours for a mode, in `color`: github leaves GitHub's own. */
 export function themeFor(mode: Mode, color: keyof typeof TINTS | 'github'): Theme {
-  return color === 'github' ? THEMES[mode] : { ...THEMES[mode], ...TINTS[color][mode] };
+  // A colour's marked words are in its highlight, which reads as text on either page.
+  return color === 'github' ? THEMES[mode] : { ...THEMES[mode], ...TINTS[color][mode], emphasis: TINTS[color][mode].highlight };
 }
 
 // One size for every card: two side by side fill a profile README's 800px, shown at their real
@@ -145,6 +150,40 @@ export function truncate(s: string, maxWidth: number, fontSize: number, bold = f
   let out = s;
   while (out.length > 1 && textWidth(`${out}…`, fontSize, bold) > maxWidth) out = out.slice(0, -1);
   return `${out}…`;
+}
+
+/** Text with parts marked *like this*: the parts in order, the marked ones flagged. A lone * stays as it is. */
+export function marked(text: string): { text: string; mark: boolean }[] {
+  const parts: { text: string; mark: boolean }[] = [];
+  let at = 0;
+  for (const m of text.matchAll(/\*([^*]+)\*/g)) {
+    if (m.index > at) parts.push({ text: text.slice(at, m.index), mark: false });
+    parts.push({ text: m[1], mark: true });
+    at = m.index + m[0].length;
+  }
+  if (at < text.length) parts.push({ text: text.slice(at), mark: false });
+  return parts;
+}
+
+/** Text without its marks. */
+export function unmarked(text: string): string {
+  return marked(text).map((p) => p.text).join('');
+}
+
+/** A text element's content: the text cut to fit like `truncate`, its marked parts in `colour`. */
+export function markedText(text: string, maxWidth: number, fontSize: number, colour: string, bold = false): string {
+  const parts = marked(text);
+  const whole = parts.map((p) => p.text).join('');
+  const cut = truncate(whole, maxWidth, fontSize, bold);
+  let left = cut === whole ? whole.length : cut.length - 1; // the characters that stay, before the …
+  let out = '';
+  for (const p of parts) {
+    if (left <= 0) break;
+    const t = esc(p.text.slice(0, left));
+    left -= p.text.length;
+    out += p.mark ? `<tspan fill="${colour}">${t}</tspan>` : t;
+  }
+  return cut === whole ? out : `${out}…`;
 }
 
 const ANIMATIONS = `

@@ -1,6 +1,9 @@
-// About as a pinball-style display: your headline, lines and facts typed out one at a time.
+// About as a pinball-style display: your headline, lines and facts typed out one at a time. Words
+// marked *like this* are in the accent colour; on a one-colour display, where the text is that
+// colour already, they're at full brightness and the rest of their text dimmed.
 
 import type { Config } from '../config.ts';
+import { marked, unmarked } from '../render/svg.ts';
 import { textWidth } from './font.ts';
 import { COLS, H, W, drawDots, frame, type Style } from './dmd.ts';
 import { fit, titleLine } from './languages.ts';
@@ -27,12 +30,42 @@ export function wrap(text: string, cols: number): string[] {
   return lines;
 }
 
+/**
+ * A line of text as items: one per run of marked or unmarked characters (`marks`, one per
+ * character), each where it falls in the whole line.
+ */
+function runs(line: string, marks: boolean[], row: number, scale: number, opts: { dim?: boolean; shine?: boolean }, oneColour: boolean): Item[] {
+  const any = marks.some(Boolean);
+  const items: Item[] = [];
+  for (let start = 0; start < line.length; ) {
+    let end = start + 1;
+    while (end < line.length && marks[end] === marks[start]) end++;
+    const text = line.slice(start, end);
+    // From the line's start to this run: the width before it, and the space between two characters.
+    const col = 4 + (start ? textWidth(`${line.slice(0, start)}I`) - textWidth('I') : 0) * scale;
+    const dim = opts.dim || (any && oneColour && !marks[start]);
+    if (text.trim()) items.push({ text, col, row, scale, ...opts, dim, accent: marks[start] });
+    start = end;
+  }
+  return items;
+}
+
 /** Text as large as fits: twice the size on one line, or wrapped at the normal size; rows from 0. */
-function block(text: string, opts: { dim?: boolean; shine?: boolean } = {}): { items: Item[]; rows: number } {
-  const upper = text.toUpperCase();
-  if (textWidth(upper) * 2 <= WIDE) return { items: [{ text: upper, col: 4, row: 0, scale: 2, ...opts }], rows: 14 };
+function block(text: string, oneColour: boolean, opts: { dim?: boolean; shine?: boolean } = {}): { items: Item[]; rows: number } {
+  // The text in capitals with single spaces, as wrap leaves it, and whether each character is marked.
+  const chars: { ch: string; mark: boolean }[] = [];
+  for (const part of marked(text.trim().replace(/\s+/g, ' '))) for (const ch of part.text.toUpperCase()) chars.push({ ch, mark: part.mark });
+  const upper = chars.map((c) => c.ch).join('');
+  if (textWidth(upper) * 2 <= WIDE) return { items: runs(upper, chars.map((c) => c.mark), 0, 2, opts, oneColour), rows: 14 };
   const lines = wrap(upper, WIDE).slice(0, MAX_LINES);
-  return { items: lines.map((line, i) => ({ text: line, col: 4, row: i * LINE, ...opts })), rows: lines.length * LINE - 3 };
+  let from = 0;
+  const items = lines.flatMap((line, i) => {
+    const at = upper.indexOf(line, from); // -1 only for a word cut to fit, which then goes unmarked
+    if (at >= 0) from = at + line.length;
+    const marks = at >= 0 ? chars.slice(at, at + line.length).map((c) => c.mark) : line.split('').map(() => false);
+    return runs(line, marks, i * LINE, 1, opts, oneColour);
+  });
+  return { items, rows: lines.length * LINE - 3 };
 }
 
 /** Blocks one under the other, the whole centred in the area. */
@@ -55,18 +88,19 @@ export function renderDisplayAbout(about: Config['cards']['about'], style: Style
   const header = titleLine(title, look);
   const entries = Object.entries(facts);
 
+  const one = look.lit === look.accent;
   const slides: Item[][] = [];
-  if (headline) slides.push(centred(block(headline, { shine: true })));
-  for (const line of lines) slides.push(centred(block(line)));
+  if (headline) slides.push(centred(block(headline, one, { shine: true })));
+  for (const line of lines) slides.push(centred(block(line, one)));
   for (const [label, text] of entries) {
-    slides.push(centred({ items: [{ text: fit(label.toUpperCase(), WIDE), col: 4, row: 0, dim: true }], rows: 7 }, block(text)));
+    slides.push(centred({ items: [{ text: fit(label.toUpperCase(), WIDE), col: 4, row: 0, dim: true }], rows: 7 }, block(text, one)));
   }
-  if (!slides.length) slides.push(centred(block('Nothing here yet')));
+  if (!slides.length) slides.push(centred(block('Nothing here yet', one)));
   const show = slideshow('b', slides, { col: 0, row: 15, cols: COLS, rows: 56 }, look, ['type', 'wipe']);
 
   return frame({
     width: W, height: H, title: title ?? 'About',
-    desc: [headline, ...lines, ...entries.map(([label, text]) => `${label}: ${text}`)].filter(Boolean).join(' ') || 'Nothing here yet.',
+    desc: [headline, ...lines, ...entries.map(([label, text]) => `${label}: ${text}`)].filter(Boolean).map((t) => unmarked(t!)).join(' ') || 'Nothing here yet.',
     ...style,
     css: show.css,
     body: `<defs>${show.defs}</defs>\n${header}\n${show.markup}`,
