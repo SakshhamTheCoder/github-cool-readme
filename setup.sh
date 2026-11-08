@@ -71,6 +71,13 @@ cursor off
 INDENT="            " # under the status column
 paint() { if $COLOUR; then printf '\033[%sm%s\033[0m' "$1" "$2"; else printf '%s' "$2"; fi; }
 section() { printf '\n%s\n' "$(paint 1 "$1")"; }
+# redraw rows text: draws text over the last rows lines in one write, each line cleared to its end
+# and what's left below cleared after it, so the screen never shows the lines empty (no flicker).
+redraw() {
+  local text="$2"
+  text="${text//$'\n'/$'\033[K\n'}"
+  printf '\033[%sA\r%s\033[K\n\033[J' "$1" "$text"
+}
 note() { printf '%s%s\n' "$INDENT" "$*"; }
 report() { # report status text: green for done, yellow for skipped, red for what needs you
   local status
@@ -105,7 +112,8 @@ quit() { # Esc: stop here
   framed 33 "Stopped: nothing after this step was changed."
   exit 1
 }
-read_key() { # read_key: one key into KEY, "" for Enter, UP DOWN LEFT RIGHT for the arrows. Esc quits;
+read_key() { # read_key: one key into KEY, "" for Enter, " " for space, UP DOWN LEFT RIGHT for the arrows,
+             # SHIFT_UP SHIFT_DOWN with Shift (or Alt). Esc quits;
              # other keys like them (F1, Home, ...) are ignored.
   local saved rest c n
   while :; do
@@ -131,16 +139,17 @@ read_key() { # read_key: one key into KEY, "" for Enter, UP DOWN LEFT RIGHT for 
       '[B' | 'OB') KEY=DOWN; return 0 ;;
       '[D' | 'OD') KEY=LEFT; return 0 ;;
       '[C' | 'OC') KEY=RIGHT; return 0 ;;
+      '[1;2A' | '[1;3A' | '[1;4A') KEY=SHIFT_UP; return 0 ;;
+      '[1;2B' | '[1;3B' | '[1;4B') KEY=SHIFT_DOWN; return 0 ;;
     esac
   done
 }
 
-draw_yesno() { # draw_yesno answer hint: yes and no, the answer in green, then the hint if any
-  local v line=""
-  for v in yes no; do
-    if [ "$v" = "$1" ]; then line="$line  $(paint '1;32' "$v")"; else line="$line  $(paint 2 "$v")"; fi
-  done
-  printf '%s%s\n' "$INDENT" "${line#  }"
+choice() { # choice value chosen: the value with its dot, ● in green if it's the chosen one, ○ dim if not
+  if [ "$1" = "$2" ]; then paint '1;32' "● $1"; else paint 2 "○ $1"; fi
+}
+draw_yesno() { # draw_yesno answer hint: yes and no, the answer marked, then the hint if any
+  printf '%s%s  %s\n' "$INDENT" "$(choice yes "$1")" "$(choice no "$1")"
   [ -z "$2" ] || printf '%s%s\n' "$INDENT" "$(paint 2 "$2")"
 }
 # yesno "Question" default(y|n) [d]: returns 0 yes, 1 no, 2 show the diff (with d). With the full
@@ -155,28 +164,27 @@ yesno() {
     [ "$def" = y ]
     return
   fi
-  if $FANCY; then # like the other screens: the question, then yes and no; 1 switches, Enter continues
+  if $FANCY; then # like the other screens: the question, then yes and no; space switches, Enter continues
     printf '%s%s\n' "$INDENT" "$question"
     answer=no; [ "$def" = y ] && answer=yes
-    hint="press [1] to change, Enter to continue"
-    [ -z "${3:-}" ] || hint="press [1] to change, [d] to show the changes, Enter to continue"
+    hint="space to change, Enter to continue"
+    [ -z "${3:-}" ] || hint="space to change, d to show the changes, Enter to continue"
     quiet_keys on
     draw_yesno "$answer" "$hint"
     while :; do
       read_key
       case "$KEY" in
         '') break ;;
-        1) if [ "$answer" = yes ]; then answer=no; else answer=yes; fi ;;
+        ' ') if [ "$answer" = yes ]; then answer=no; else answer=yes; fi ;;
         LEFT) answer=yes ;;
         RIGHT) answer=no ;;
         d | D) [ -n "${3:-}" ] && { answer=diff; break; } ;;
       esac
-      printf '\033[2A\r\033[J'
-      draw_yesno "$answer" "$hint"
+      redraw 2 "$(draw_yesno "$answer" "$hint")"
     done
     quiet_keys off
-    printf '\033[2A\r\033[J' # the choice stays, the hint goes; for the diff, both go
-    [ "$answer" = diff ] || draw_yesno "$answer" ""
+    if [ "$answer" = diff ]; then printf '\033[2A\r\033[J' # for the diff, the choice and the hint go
+    else redraw 2 "$(draw_yesno "$answer" "")"; fi # the choice stays, the hint goes
     case "$answer" in yes) return 0 ;; no) return 1 ;; *) return 2 ;; esac
   fi
   printf '%s%s  %s  ' "$INDENT" "$question" "$(paint 2 "[$hint]")"
@@ -418,59 +426,155 @@ get_row() { case "$1" in style) echo "$S_STYLE" ;; color) echo "$S_COLOR" ;; bac
 set_row() { case "$1" in style) S_STYLE="$2" ;; color) S_COLOR="$2" ;; background) S_BG="$2" ;; private) S_PRIVATE="$2" ;; orgs) S_ORGS="$2" ;; esac; }
 panel() { case "$1" in amber) echo 0d0b07 ;; green) echo 070d09 ;; *) echo 0d1117 ;; esac; } # panel color: the dark background
 bg_value() { case "$S_BG" in dark) panel "$S_COLOR" ;; *) echo "$S_BG" ;; esac; } # what background: says
-cycle_row() { # the next value of a row, wrapping around
-  local cur next="" first="" v found=false
+cycle_row() { # cycle_row row [back]: the next value of a row, or the one before, wrapping around
+  local cur v prev="" first="" last="" next="" found=false
   cur="$(get_row "$1")"
   for v in $(row_values "$1"); do
     [ -n "$first" ] || first="$v"
-    if $found; then next="$v"; break; fi
-    [ "$v" = "$cur" ] && found=true
+    if $found && [ -z "$next" ]; then next="$v"; fi
+    [ "$v" = "$cur" ] && { found=true; [ -n "$last" ] && prev="$last"; }
+    last="$v"
   done
-  set_row "$1" "${next:-$first}"
+  if [ "${2:-}" = back ]; then set_row "$1" "${prev:-$last}"; else set_row "$1" "${next:-$first}"; fi
 }
+SROW=1   # the row ▸ is on
 DRAWN=0 # lines the settings screen took last time, to draw over them
-draw_settings() { # draw_settings [done]: one line per setting, then the hint unless done
-  local n=1 row v line
-  [ "$DRAWN" = 0 ] || printf '\033[%sA\r\033[J' "$DRAWN" # back up, and clear rows that go away
+draw_settings() { # draw_settings [done]: one line per setting, its value marked, then the hint unless done
+  local frame
+  frame="$(settings_frame "${1:-}")"
+  if [ "$DRAWN" = 0 ]; then printf '%s\n' "$frame"; else redraw "$DRAWN" "$frame"; fi
+  DRAWN="$(printf '%s\n' "$frame" | wc -l | tr -d ' ')"
+}
+settings_frame() { # settings_frame [done]: the settings screen's lines
+  local n=1 row v line mark
   for row in $(rows); do
     line=""
     for v in $(row_values "$row"); do
-      if [ "$v" = "$(get_row "$row")" ]; then line="$line  $(paint '1;32' "$(row_label "$row" "$v")")"
-      else line="$line  $(paint 2 "$(row_label "$row" "$v")")"
+      if [ "$v" = "$(get_row "$row")" ]; then line="$line  $(paint '1;32' "● $(row_label "$row" "$v")")"
+      else line="$line  $(paint 2 "○ $(row_label "$row" "$v")")"
       fi
     done
-    printf '%s%s %s%s\n' "$INDENT" "$(paint 1 "[$n]")" "$(printf '%-13s' "$(row_name "$row")")" "$line"
+    mark="  "; [ "${1:-}" != done ] && [ "$n" = "$SROW" ] && mark="$(paint 1 '▸') "
+    printf '%s%s%s%s\n' "${INDENT%  }" "$mark" "$(printf '%-13s' "$(row_name "$row")")" "$line"
     n=$((n + 1))
   done
-  if [ "${1:-}" = done ]; then DRAWN=$((n - 1)); return; fi
-  printf '%s%s\n' "$INDENT" "$(paint 2 "press [1]-[$((n - 1))] to change, Enter to continue")"
-  DRAWN="$n"
+  [ "${1:-}" = done ] || printf '%s%s\n' "$INDENT" "$(paint 2 "↑↓ to choose, space to change, Enter to continue")"
 }
 settings_screen() {
-  local row n
+  local row n count
   if ! $FANCY; then
     for row in $(rows); do note "$(printf '%-13s %s' "$(row_name "$row")" "$(row_label "$row" "$(get_row "$row")")")"; done
     return
   fi
+  count="$(set -- $(rows); echo $#)"
   quiet_keys on
   draw_settings
   while :; do
     read_key
     [ -n "$KEY" ] || break
-    n=1
-    for row in $(rows); do
-      [ "$KEY" = "$n" ] && cycle_row "$row"
-      n=$((n + 1))
-    done
+    row="$(set -- $(rows); eval "echo \${$SROW}")"
+    case "$KEY" in
+      UP) [ "$SROW" -gt 1 ] && SROW=$((SROW - 1)) ;;
+      DOWN) [ "$SROW" -lt "$count" ] && SROW=$((SROW + 1)) ;;
+      ' ' | RIGHT) cycle_row "$row" ;;
+      LEFT) cycle_row "$row" back ;;
+    esac
     draw_settings
   done
   quiet_keys off
   draw_settings done # the settings stay, the hint goes
 }
 
+# ------------------------------------------------------------------ the about card's text
+
+about_empty() { # about_empty file: true when the about card has no text yet (no section, or only empty values)
+  awk '
+    /^[^[:space:]#]/ { in_cards = ($0 ~ /^cards:/); in_about = 0; next }
+    in_cards && /^[[:space:]]+about:/ {
+      match($0, /^[[:space:]]+/); ai = RLENGTH; in_about = 1
+      v = $0; sub(/^[[:space:]]+about:/, "", v); sub(/[[:space:]]*#.*$/, "", v); sub(/^[[:space:]]+/, "", v)
+      if (v != "" && v != "{}") content = 1
+      next
+    }
+    in_about {
+      if ($0 ~ /^[[:space:]]*$/ || $0 ~ /^[[:space:]]*#/) next
+      match($0, /^[[:space:]]*/); if (RLENGTH <= ai) { in_about = 0; next }
+      s = $0; sub(/^[[:space:]]+/, "", s); sub(/[[:space:]]+#.*$/, "", s)
+      if (s ~ /^(headline:[[:space:]]*(null|~)?|lines:[[:space:]]*(\[\])?|facts:[[:space:]]*(\{\})?|title:.*)$/) next
+      content = 1
+    }
+    END { exit content }' "$1"
+}
+about_set() { # about_set file block: the about section under cards: replaced by block (lines indented by 4)
+  local block tmp
+  block="$(mktemp)"; tmp="$(mktemp)"
+  { echo "  about:"; printf '%s\n' "$2"; } > "$block"
+  awk -v about="$block" '
+    function insert(  l) { while ((getline l < about) > 0) print l; done = 1 }
+    /^[^[:space:]#]/ { skip = 0; in_cards = ($0 ~ /^cards:/); print; if (in_cards && !done) insert(); next }
+    in_cards && /^[[:space:]]+about:/ { match($0, /^[[:space:]]+/); ai = RLENGTH; skip = 1; next }
+    skip { match($0, /^[[:space:]]*/); if ($0 ~ /^[[:space:]]*$/ || RLENGTH > ai) next; skip = 0 }
+    { print }
+    END { if (!done) { print "cards:"; insert() } }' "$1" > "$tmp" && mv "$tmp" "$1"
+  rm -f "$block"
+}
+about_placeholder() {
+  echo "    headline: null        # shown large, e.g. \"Hi, I'm $LOGIN\""
+  echo "    lines: []             # a line each, e.g. [\"I build developer tools.\"]"
+  echo "    facts: {}             # label: text, e.g. { Focus: Rust, Based in: Lisbon }"
+}
+quoted() { local s="$1"; s="${s//\\/\\\\}"; s="${s//\"/\\\"}"; printf '"%s"' "$s"; } # as a YAML string
+trimmed() { local s="$1"; s="${s#"${s%%[![:space:]]*}"}"; s="${s%"${s##*[![:space:]]}"}"; printf '%s' "$s"; }
+ask_text() { # ask_text prompt: a line you type, into ANSWER
+  cursor on
+  printf '%s%s ' "$INDENT" "$1"
+  IFS= read -r ANSWER < /dev/tty || ANSWER=""
+  cursor off
+  ANSWER="$(trimmed "$ANSWER")"
+}
+write_about() { # asks for the headline, lines and facts, and writes them under cards: about:
+  local name hello headline block="" n label text
+  name="$(gh api user --jq '.name // empty' 2>/dev/null || true)"
+  name="${name%% *}"; name="${name:-$LOGIN}"
+  hello="Hi, I'm $name"
+  ask_text "headline, shown large $(paint 2 "[$hello; - for none]"):"
+  headline="${ANSWER:-$hello}"
+  [ "$headline" = "-" ] || block="    headline: $(quoted "$headline")"
+  note "$(paint 2 "lines, one at a time; Enter on an empty one when done")"
+  n=1
+  while :; do
+    ask_text "line $n:"
+    [ -n "$ANSWER" ] || break
+    [ "$n" = 1 ] && block="${block:+$block$'\n'}    lines:"
+    block="$block"$'\n'"      - $(quoted "$ANSWER")"
+    n=$((n + 1))
+  done
+  note "$(paint 2 "facts, as label: text (Based in: Lisbon); Enter on an empty one when done")"
+  n=1
+  while :; do
+    ask_text "fact $n:"
+    [ -n "$ANSWER" ] || break
+    case "$ANSWER" in
+      *:*) label="$(trimmed "${ANSWER%%:*}")"; text="$(trimmed "${ANSWER#*:}")" ;;
+      *) label=""; text="" ;;
+    esac
+    if [ -z "$label" ] || [ -z "$text" ]; then note "$(paint 33 "write it as label: text, like Based in: Lisbon")"; continue; fi
+    [ "$n" = 1 ] && block="${block:+$block$'\n'}    facts:"
+    block="$block"$'\n'"      $(quoted "$label"): $(quoted "$text")"
+    n=$((n + 1))
+  done
+  if [ -z "$block" ]; then
+    about_set "$CONFIG" "$(about_placeholder)"
+    report added "an empty about section under cards: in $CONFIG; write the about card's text there"
+  else
+    about_set "$CONFIG" "$block"
+    report added "the about card's text to $CONFIG"
+  fi
+}
+
 # ------------------------------------------------------------------ banner
 
-# A star sits beside the title. If you haven't starred the repo, it's lit and 1 turns it off and on;
+# A star sits beside the title. If you haven't starred the repo, it's lit and space turns it off and on;
 # setup goes on by itself after a few seconds, or on Enter, and stars the repo if the star is still
 # lit. The star needs a terminal wide enough for the whole title (44 columns), as it's put in place
 # with the cursor.
@@ -527,7 +631,7 @@ draw_banner() { # draw_banner ask|done: the title with the star beside it; with 
   if [ "$1" = ask ]; then
     if [ "$STAR" = on ]; then printf '  %s' "$(paint 33 "star the repo to support the author")"
     else printf '  %s' "$(paint 2 "star the repo to support the author")"; fi
-    printf '%s\033[K\n' "$(paint 2 ", press [1] to change")"
+    printf '%s\033[K\n' "$(paint 2 ", space to change")"
   fi
 }
 
@@ -548,10 +652,10 @@ if $ASK_STAR; then
     case "$k" in
       '') ticks=$((ticks - 1)) ;;
       "$ESC") quit ;;
-      1*)
+      ' '*)
         if [ "$STAR" = on ]; then STAR=off; else STAR=on; fi
-        printf '\r\033[%dA' "$UP"
-        draw_banner ask ;;
+        frame="$(draw_banner ask)" # its lines clear to their end; the countdown line below stays
+        printf '\r\033[%dA%s\n' "$UP" "$frame" ;;
     esac
     case "$k" in *$'\n'* | *$'\r'*) break ;; esac
   done
@@ -636,7 +740,7 @@ ask_token() { # ask_token: a new classic token, checked, then stored as the secr
     cursor on
     quiet_keys on # a paste comes in one go; without this, what lands between two reads is shown
     while read_key && [ -n "$KEY" ]; do
-      case "$KEY" in $'\177' | $'\b') TOKEN="${TOKEN%?}" ;; UP | DOWN | LEFT | RIGHT) ;; *) TOKEN="$TOKEN$KEY" ;; esac
+      case "$KEY" in $'\177' | $'\b') TOKEN="${TOKEN%?}" ;; UP | DOWN | LEFT | RIGHT | SHIFT_UP | SHIFT_DOWN) ;; *) TOKEN="$TOKEN$KEY" ;; esac
     done
     quiet_keys off
     cursor off; echo
@@ -727,10 +831,10 @@ known() { # known "card card": the known cards among them, each once, in the ord
   echo "$out"
 }
 # The cards screen: one row per card, the ones that are on (S_CARDS, in README order) at the top,
-# in green, the ones that are off (OFF) below them, dim. A row's number turns its card off (it
-# goes to the top of the off ones) or on (it goes to the bottom of the on ones). The ▸ (SEL) is
-# on a card that's on: the one just turned on, or after turning one off the last one that's on;
-# up and down move it among the cards that are on.
+# ● in green, the ones that are off (OFF) below them, ○ dim. Up and down move the ▸ (SEL); space
+# turns its card off (it goes to the top of the off ones, and the ▸ stays on its row) or on (it
+# goes to the bottom of the on ones, and the ▸ goes with it); Shift with up or down moves a card
+# that's on among the others.
 without() { printf ' %s ' "$1" | sed "s/ $2 / /; s/^ *//; s/ *$//"; } # without "list" card
 move_card() { # move_card up|down: SEL one place up or down among the cards that are on
   local a i j t
@@ -741,13 +845,12 @@ move_card() { # move_card up|down: SEL one place up or down among the cards that
   t="${a[$i]}"; a[$i]="${a[$j]}"; a[$j]="$t"
   S_CARDS="${a[*]}"
 }
-draw_cards() { # draw_cards hint: a row per card, those that are on in green, the selected one marked; then the hint if any
-  local card mark name n=1
+draw_cards() { # draw_cards hint: a row per card, ● on or ○ off, the selected one marked; then the hint if any
+  local card mark name
   for card in $S_CARDS $OFF; do
     mark="  "; [ -n "$1" ] && [ "$card" = "$SEL" ] && mark="$(paint 1 '▸') "
-    if card_on "$card"; then name="$(paint '1;32' "$card")"; else name="$(paint 2 "$card")"; fi
-    printf '%s%s%s %s\n' "${INDENT%  }" "$mark" "$(paint 1 "[$n]")" "$name"
-    n=$((n + 1))
+    if card_on "$card"; then name="$(paint '1;32' "● $card")"; else name="$(paint 2 "○ $card")"; fi
+    printf '%s%s%s\n' "${INDENT%  }" "$mark" "$name"
   done
   [ -z "$1" ] || printf '%s%s\n' "$INDENT" "$(paint 2 "$1")"
 }
@@ -769,11 +872,19 @@ $WAS_OFF || cur_cards="${cur_cards:-$DEFAULT_CARDS}"
 S_CARDS="$cur_cards"
 OFF=""
 for card in $CARD_NAMES; do card_on "$card" || OFF="${OFF:+$OFF }$card"; done
-SEL="${S_CARDS%% *}"
+SEL="$(set -- $S_CARDS $OFF; echo "$1")"
 ROWS="$(set -- $CARD_NAMES; echo $#)"
 cards_hint() {
-  if [ -n "$S_CARDS" ]; then echo "press [1]-[$ROWS] for on/off, ↑↓ to move it, Enter to continue"
-  else echo "all off: cards out of your README, no schedule; Enter to continue"; fi
+  if [ -n "$S_CARDS" ]; then echo "↑↓ to choose, space for on/off, shift ↑↓ to move it, Enter to continue"
+  else echo "all off: cards out of your README, no schedule; space for on/off, Enter to continue"; fi
+}
+move_sel() { # move_sel up|down: the ▸ to the row above or below
+  local a i
+  a=($S_CARDS $OFF)
+  for ((i = 0; i < ${#a[@]}; i++)); do [ "${a[$i]}" = "$SEL" ] && break; done
+  if [ "$1" = up ] && [ "$i" -gt 0 ]; then SEL="${a[$((i - 1))]}"; fi
+  if [ "$1" = down ] && [ "$((i + 1))" -lt "${#a[@]}" ]; then SEL="${a[$((i + 1))]}"; fi
+  return 0
 }
 if $FANCY; then
   quiet_keys on
@@ -782,25 +893,21 @@ if $FANCY; then
     read_key
     [ -n "$KEY" ] || break
     case "$KEY" in
-      UP) move_card up ;;
-      DOWN) move_card down ;;
-      [1-9])
-        card="$(set -- $S_CARDS $OFF; if [ "$KEY" -le $# ]; then eval "echo \${$KEY}"; fi)" # the card on that row
-        if [ -z "$card" ]; then :
-        elif card_on "$card"; then
-          S_CARDS="$(without "$S_CARDS" "$card")"; OFF="$card${OFF:+ $OFF}"
-          SEL="${S_CARDS##* }"
-        else
-          OFF="$(without "$OFF" "$card")"; S_CARDS="${S_CARDS:+$S_CARDS }$card"
-          SEL="$card"
-        fi ;;
+      UP) move_sel up ;;
+      DOWN) move_sel down ;;
+      SHIFT_UP) card_on "$SEL" && move_card up ;;
+      SHIFT_DOWN) card_on "$SEL" && move_card down ;;
+      ' ')
+        if card_on "$SEL"; then # the ▸ stays on its row, on the card that takes the place of this one
+          row="$(set -- $S_CARDS $OFF; i=1; for c; do [ "$c" = "$SEL" ] && break; i=$((i + 1)); done; echo "$i")"
+          S_CARDS="$(without "$S_CARDS" "$SEL")"; OFF="$SEL${OFF:+ $OFF}"
+          SEL="$(set -- $S_CARDS $OFF; eval "echo \${$row}")"
+        else OFF="$(without "$OFF" "$SEL")"; S_CARDS="${S_CARDS:+$S_CARDS }$SEL"; fi ;;
     esac
-    printf '\033[%dA\r\033[J' $((ROWS + 1))
-    draw_cards "$(cards_hint)"
+    redraw $((ROWS + 1)) "$(draw_cards "$(cards_hint)")"
   done
   quiet_keys off
-  printf '\033[%dA\r\033[J' $((ROWS + 1)) # the cards stay, the hint and the ▸ go
-  draw_cards ""
+  redraw $((ROWS + 1)) "$(draw_cards "")" # the cards stay, the hint and the ▸ go
 elif [ -n "$S_CARDS" ]; then
   report ok "cards: $(printf '%s' "$S_CARDS" | sed 's/ /, /g')"
 else
@@ -894,24 +1001,22 @@ else
       echo "  facts: {}             # label: text, e.g. { Focus: Rust, Based in: Lisbon }"
     } >> "$CONFIG"
     report added "an about: section to $CONFIG; write the about card's text there"
-  elif card_on about && ! $OLD_KEPT && ! awk '/^[^[:space:]#]/ { in_cards = /^cards:/ } in_cards && /^[[:space:]]+about:/ { found = 1 } END { exit !found }' "$CONFIG"; then
-    about="$(mktemp)"
-    {
-      echo "  about:                  # the about card's text"
-      echo "    headline: null        # shown large, e.g. \"Hi, I'm $LOGIN\""
-      echo "    lines: []             # a line each, e.g. [\"I build developer tools.\"]"
-      echo "    facts: {}             # label: text, e.g. { Focus: Rust, Based in: Lisbon }"
-    } > "$about"
-    tmp="$(mktemp)"
-    if grep -q '^cards:' "$CONFIG"; then
-      awk -v about="$about" '{ print } /^cards:/ { while ((getline l < about) > 0) print l }' "$CONFIG" > "$tmp"
-    else
-      { cat "$CONFIG"; echo "cards:"; cat "$about"; } > "$tmp"
-    fi
-    mv "$tmp" "$CONFIG"; rm -f "$about"
-    report added "an about section under cards: in $CONFIG; write the about card's text there"
   fi
   note "$(paint 2 "more settings (languages, titles, ...): edit $CONFIG; see github.com/$TOOL_REPO#settings")"
+
+  # A card that's nothing without your settings: the about card is empty until it has your text.
+  if card_on about && ! $OLD_KEPT && about_empty "$CONFIG"; then
+    section "About card"
+    note "it's empty: it shows a headline, lines and facts of your own"
+    if $HAVE_TTY && yesno "Write them now?" y; then
+      write_about
+    elif awk '/^[^[:space:]#]/ { c = ($0 ~ /^cards:/) } c && /^[[:space:]]+about:/ { f = 1 } END { exit !f }' "$CONFIG"; then
+      report skipped "write the about card's text under cards: about: in $CONFIG"
+    else
+      about_set "$CONFIG" "$(about_placeholder)"
+      report added "an empty about section under cards: in $CONFIG; write the about card's text there"
+    fi
+  fi
 fi
 # Every card is shown 400 wide, so two fit a row: classic ones are that size, OLED ones are scaled.
 WIDTH=400
