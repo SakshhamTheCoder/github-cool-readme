@@ -48,12 +48,29 @@ export const THEMES: Record<Mode, Theme> = {
 
 /** What a colour changes on the classic cards: the ring, the weekly bars, the streaks highlight. */
 type Tint = Pick<Theme, 'accent' | 'heat' | 'highlight'>;
-const TINTS: Record<'amber' | 'green', Record<Mode, Tint>> = {
+const TINTS: Record<'amber' | 'green' | 'purple' | 'cyan' | 'red' | 'blue', Record<Mode, Tint>> = {
   // Like the greens: deep to pale on a light page, dim to bright on a dark one; the highlight dark
   // enough to read as text on white.
   amber: {
     light: { accent: '#e08a00', heat: ['#9a4d00', '#c26a00', '#f0a020', '#ffd58a'], highlight: '#b35c00' },
     dark: { accent: '#ffab1a', heat: ['#5c3300', '#8f5200', '#d98a00', '#ffab1a'], highlight: '#ffab1a' },
+  },
+  // GitHub's purple, cyan, red and blue the same way: deep to pale on light, dim to bright on dark.
+  purple: {
+    light: { accent: '#8250df', heat: ['#4c2889', '#6639ba', '#a475f9', '#d8b9ff'], highlight: '#8250df' },
+    dark: { accent: '#a371f7', heat: ['#2e1a4f', '#553098', '#8957e5', '#c297ff'], highlight: '#a371f7' },
+  },
+  cyan: {
+    light: { accent: '#0e8a9a', heat: ['#054952', '#0a7b8a', '#3fb8c6', '#a5e8ef'], highlight: '#0a7b8a' },
+    dark: { accent: '#39c5cf', heat: ['#0a3a40', '#0e6b75', '#1fa3b0', '#56d4dd'], highlight: '#39c5cf' },
+  },
+  red: {
+    light: { accent: '#cf222e', heat: ['#82071e', '#cf222e', '#f2706f', '#ffc1bd'], highlight: '#cf222e' },
+    dark: { accent: '#f85149', heat: ['#4d1215', '#8e1b20', '#da3633', '#ff7b72'], highlight: '#f85149' },
+  },
+  blue: {
+    light: { accent: '#0969da', heat: ['#0a3069', '#0969da', '#54aeff', '#b6e3ff'], highlight: '#0969da' },
+    dark: { accent: '#4493f8', heat: ['#0c2d6b', '#1158c7', '#388bfd', '#79c0ff'], highlight: '#4493f8' },
   },
   // GitHub's greens, with the ring green too.
   green: {
@@ -63,7 +80,7 @@ const TINTS: Record<'amber' | 'green', Record<Mode, Tint>> = {
 };
 
 /** The classic cards' colours for a mode, in `color`: github leaves GitHub's own. */
-export function themeFor(mode: Mode, color: 'amber' | 'green' | 'github'): Theme {
+export function themeFor(mode: Mode, color: keyof typeof TINTS | 'github'): Theme {
   return color === 'github' ? THEMES[mode] : { ...THEMES[mode], ...TINTS[color][mode] };
 }
 

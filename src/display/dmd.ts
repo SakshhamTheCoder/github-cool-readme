@@ -15,7 +15,7 @@ const FONT = `-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvet
 
 export type Cell = [number, number];
 export type Mode = 'light' | 'dark';
-export type Color = 'amber' | 'green' | 'github';
+export type Color = 'github' | 'amber' | 'green' | 'purple' | 'cyan' | 'red' | 'blue';
 
 export interface Look {
   /** Lit dots. */
@@ -34,20 +34,28 @@ export interface Look {
 }
 
 /**
- * The colours of a look. Amber and green are the same on both themes, like a real display, on their
- * dark panel; without the panel, a light page gets darker shades of them, as the bright ones fade on white.
+ * A display's colours: bright on its dark panel, and for a light page without the panel a darker
+ * shade (the bright ones fade on white) with a deeper one for the shine.
+ */
+const DISPLAYS: Record<Exclude<Color, 'github'>, { bright: string; shine: string; panel: string; dark: string; deep: string; unlit: number }> = {
+  amber: { bright: '#ffab1a', shine: '#fff2cc', panel: '#0d0b07', dark: '#b35c00', deep: '#6e3800', unlit: 0.09 },
+  green: { bright: '#3dff74', shine: '#e8ffef', panel: '#070d09', dark: '#1a7f37', deep: '#0b4d1f', unlit: 0.08 },
+  purple: { bright: '#c77dff', shine: '#f3e6ff', panel: '#0c0710', dark: '#8250df', deep: '#4c2889', unlit: 0.1 },
+  cyan: { bright: '#22e3ff', shine: '#e0fbff', panel: '#050c0d', dark: '#0a7b8a', deep: '#054952', unlit: 0.08 },
+  red: { bright: '#ff4d4d', shine: '#ffe5e5', panel: '#0d0606', dark: '#cf222e', deep: '#82071e', unlit: 0.1 },
+  blue: { bright: '#4da3ff', shine: '#e3f0ff', panel: '#05080d', dark: '#0969da', deep: '#0a3069', unlit: 0.1 },
+};
+
+/**
+ * The colours of a look. A colour is the same on both themes, like a real display, on its dark
+ * panel; without the panel, a light page gets its darker shades. github follows the viewer's theme.
  */
 export function look(color: Color, mode: Mode, panel = true): Look {
-  if (color !== 'github' && !panel && mode === 'light') {
-    return color === 'amber'
-      ? { lit: '#b35c00', accent: '#b35c00', shine: '#6e3800', dim: 0.65, panel: null, unlit: '#b35c00', unlitOpacity: 0.1 }
-      : { lit: '#1a7f37', accent: '#1a7f37', shine: '#0b4d1f', dim: 0.65, panel: null, unlit: '#1a7f37', unlitOpacity: 0.1 };
-  }
-  if (color === 'amber') {
-    return { lit: '#ffab1a', accent: '#ffab1a', shine: '#fff2cc', dim: 0.55, panel: '#0d0b07', unlit: '#ffab1a', unlitOpacity: 0.09 };
-  }
-  if (color === 'green') {
-    return { lit: '#3dff74', accent: '#3dff74', shine: '#e8ffef', dim: 0.55, panel: '#070d09', unlit: '#3dff74', unlitOpacity: 0.08 };
+  if (color !== 'github') {
+    const d = DISPLAYS[color];
+    return !panel && mode === 'light'
+      ? { lit: d.dark, accent: d.dark, shine: d.deep, dim: 0.65, panel: null, unlit: d.dark, unlitOpacity: 0.1 }
+      : { lit: d.bright, accent: d.bright, shine: d.shine, dim: 0.55, panel: d.panel, unlit: d.bright, unlitOpacity: d.unlit };
   }
   // github: GitHub's Primer colours, on a transparent background, per light or dark theme.
   return mode === 'light'

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compute } from '../src/compute.ts';
-import { DEFAULT_CONFIG, parseConfig, type Config } from '../src/config.ts';
+import { COLORS, DEFAULT_CONFIG, parseConfig, type Config } from '../src/config.ts';
 import { cellsPath, dotsPath, look, ringCells } from '../src/display/dmd.ts';
 import { textCells, textWidth } from '../src/display/font.ts';
 import { rasterize } from '../src/display/raster.ts';
@@ -120,7 +120,7 @@ describe('oled cards', () => {
   });
 
   it('draws every look', () => {
-    for (const color of ['amber', 'green', 'github'] as const) {
+    for (const color of COLORS) {
       for (const dots of [true, false]) {
         const files = display((c) => { c.look.color = color; c.look.style = dots ? 'dotmatrix' : 'oled'; });
         // LEDs are real circles (round-capped dashes), never a mask or a filter: Safari blurs those.
@@ -193,6 +193,24 @@ describe('settings', () => {
     expect(files('dotmatrix')).toContain('stroke-dasharray="0 3"'); // round LEDs
     expect(files('oled')).not.toContain('stroke-dasharray="0 3"'); // square pixels
     expect(files('oled')).toContain('#3dff74');
+  });
+
+  it('has every colour, each with its own shades, in every style', () => {
+    for (const color of COLORS) {
+      for (const style of ['classic', 'dotmatrix'] as const) {
+        const c = parseConfig(`show: [summary, weekly, streaks]\nlook:\n  style: ${style}\n  color: ${color}\n`);
+        const files = renderAll(compute(fixture(), c), c);
+        for (const svg of Object.values(files)) assertWellFormed(svg);
+        const plain = parseConfig(`show: [summary, weekly]\nlook:\n  style: ${style}\n`);
+        const github = renderAll(compute(fixture(), plain), plain);
+        const both = (f: Record<string, string>) => f['summary-light.svg'] + f['weekly-light.svg'];
+        if (color !== 'github') expect(both(files), `${style} ${color}`).not.toBe(both(github));
+      }
+    }
+    // A display colour is darker on a light page without its panel, readable on white.
+    const red = parseConfig('look:\n  style: dotmatrix\n  color: red\n');
+    expect(renderAll(compute(fixture(), red), red)['summary-light.svg']).toContain('#cf222e');
+    expect(renderAll(compute(fixture(), red), red)['summary-dark.svg']).toContain('#ff4d4d');
   });
 
   it('colours every style github by default, and the classic cards when asked', () => {

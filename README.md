@@ -33,7 +33,7 @@ cards:
     ring: github        # the GitHub logo in the ring; leave out for the percentage
 ```
 
-With `color: amber` or `green` under `look`, the ring, the weekly bars and the streaks highlight take that colour.
+With `color: amber`, `green`, `purple`, `cyan`, `red` or `blue` under `look`, the ring, the weekly bars and the streaks highlight take that colour.
 
 <p align="center">
 <picture>
@@ -58,7 +58,7 @@ With `color: amber` or `green` under `look`, the ring, the weekly bars and the s
 
 ## Dot matrix and OLED cards
 
-The same numbers as pinball-style displays: big readable text in a dot font, one item at a time with pinball transitions. `style: dotmatrix` draws them in round LEDs over a faint grid of unlit ones; `style: oled` in square pixels. Their colour is GitHub's (the default), amber or green, on a transparent background or a colour of your own. The examples also have the GitHub logo in the summary's ring (`ring: github`).
+The same numbers as pinball-style displays: big readable text in a dot font, one item at a time with pinball transitions. `style: dotmatrix` draws them in round LEDs over a faint grid of unlit ones; `style: oled` in square pixels. Their colour is GitHub's (the default), amber, green, purple, cyan, red or blue, on a transparent background or a colour of your own. The examples also have the GitHub logo in the summary's ring (`ring: github`).
 
 **Amber**, on a dark panel: the orange of a plasma display.
 
@@ -179,7 +179,7 @@ count:
 
 look:
   style: classic          # classic, oled (square pixels) or dotmatrix (round LEDs)
-  color: github           # GitHub's blue and greens; amber or green: what highlights, in that colour
+  color: github           # GitHub's blue and greens; amber, green, purple, cyan, red or blue: what highlights
   animations: true        # false: still cards
   background: none        # the page shows through (amber and green go darker on light pages), or a colour
                           # without #, like 030506: the same for every viewer, the text in shades that suit it

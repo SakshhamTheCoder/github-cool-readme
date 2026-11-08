@@ -78,6 +78,21 @@ redraw() {
   text="${text//$'\n'/$'\033[K\n'}"
   printf '\033[%sA\r%s\033[K\n\033[J' "$1" "$text"
 }
+# frame_height text: the lines text takes on screen, a line longer than the terminal is wide taking
+# more than one. Characters are counted as UTF-8 whatever the locale: bytes, less continuation bytes.
+frame_height() {
+  local w
+  w="$(stty size < /dev/tty 2>/dev/null | awk '{ print $2 }')"
+  [ "${w:-0}" -gt 0 ] 2>/dev/null || w=80
+  printf '%s\n' "$1" | sed "s/$ESC\[[0-9;?]*[A-Za-z]//g" | LC_ALL=C tr -d '\200-\277' \
+    | LC_ALL=C awk -v w="$w" '{ n = length($0); h += n ? int((n + w - 1) / w) : 1 } END { print h + 0 }'
+}
+# paint_frame text: draws text, over the frame drawn before it (FRAME_H lines; 0 for none)
+FRAME_H=0
+paint_frame() {
+  if [ "$FRAME_H" -gt 0 ]; then redraw "$FRAME_H" "$1"; else printf '%s\n' "$1"; fi
+  FRAME_H="$(frame_height "$1")"
+}
 note() { printf '%s%s\n' "$INDENT" "$*"; }
 report() { # report status text: green for done, yellow for skipped, red for what needs you
   local status
@@ -170,7 +185,7 @@ yesno() {
     hint="space to change, Enter to continue"
     [ -z "${3:-}" ] || hint="space to change, d to show the changes, Enter to continue"
     quiet_keys on
-    draw_yesno "$answer" "$hint"
+    FRAME_H=0; paint_frame "$(draw_yesno "$answer" "$hint")"
     while :; do
       read_key
       case "$KEY" in
@@ -180,11 +195,11 @@ yesno() {
         RIGHT) answer=no ;;
         d | D) [ -n "${3:-}" ] && { answer=diff; break; } ;;
       esac
-      redraw 2 "$(draw_yesno "$answer" "$hint")"
+      paint_frame "$(draw_yesno "$answer" "$hint")"
     done
     quiet_keys off
-    if [ "$answer" = diff ]; then printf '\033[2A\r\033[J' # for the diff, the choice and the hint go
-    else redraw 2 "$(draw_yesno "$answer" "")"; fi # the choice stays, the hint goes
+    if [ "$answer" = diff ]; then printf '\033[%sA\r\033[J' "$FRAME_H" # for the diff, the choice and the hint go
+    else paint_frame "$(draw_yesno "$answer" "")"; fi # the choice stays, the hint goes
     case "$answer" in yes) return 0 ;; no) return 1 ;; *) return 2 ;; esac
   fi
   printf '%s%s  %s  ' "$INDENT" "$question" "$(paint 2 "[$hint]")"
@@ -411,7 +426,7 @@ rows() { echo "private orgs style color background"; }
 row_name() { case "$1" in color) echo colour ;; private) echo "private repos" ;; orgs) echo "org repos" ;; *) echo "$1" ;; esac; }
 row_values() {
   case "$1" in
-    style) echo "classic oled dotmatrix" ;; color) echo "github amber green" ;;
+    style) echo "classic oled dotmatrix" ;; color) echo "github amber green purple cyan red blue" ;;
     background) echo "none ${S_BG_OWN:+$S_BG_OWN }dark" ;; *) echo "true false" ;;
   esac
 }
@@ -424,7 +439,7 @@ row_label() { # row_label row value: what the value is called on screen
 }
 get_row() { case "$1" in style) echo "$S_STYLE" ;; color) echo "$S_COLOR" ;; background) echo "$S_BG" ;; private) echo "$S_PRIVATE" ;; orgs) echo "$S_ORGS" ;; esac; }
 set_row() { case "$1" in style) S_STYLE="$2" ;; color) S_COLOR="$2" ;; background) S_BG="$2" ;; private) S_PRIVATE="$2" ;; orgs) S_ORGS="$2" ;; esac; }
-panel() { case "$1" in amber) echo 0d0b07 ;; green) echo 070d09 ;; *) echo 0d1117 ;; esac; } # panel color: the dark background
+panel() { case "$1" in amber) echo 0d0b07 ;; green) echo 070d09 ;; purple) echo 0c0710 ;; cyan) echo 050c0d ;; red) echo 0d0606 ;; blue) echo 05080d ;; *) echo 0d1117 ;; esac; } # panel color: the dark background
 bg_value() { case "$S_BG" in dark) panel "$S_COLOR" ;; *) echo "$S_BG" ;; esac; } # what background: says
 cycle_row() { # cycle_row row [back]: the next value of a row, or the one before, wrapping around
   local cur v prev="" first="" last="" next="" found=false
@@ -438,13 +453,7 @@ cycle_row() { # cycle_row row [back]: the next value of a row, or the one before
   if [ "${2:-}" = back ]; then set_row "$1" "${prev:-$last}"; else set_row "$1" "${next:-$first}"; fi
 }
 SROW=1   # the row ▸ is on
-DRAWN=0 # lines the settings screen took last time, to draw over them
-draw_settings() { # draw_settings [done]: one line per setting, its value marked, then the hint unless done
-  local frame
-  frame="$(settings_frame "${1:-}")"
-  if [ "$DRAWN" = 0 ]; then printf '%s\n' "$frame"; else redraw "$DRAWN" "$frame"; fi
-  DRAWN="$(printf '%s\n' "$frame" | wc -l | tr -d ' ')"
-}
+draw_settings() { paint_frame "$(settings_frame "${1:-}")"; } # draw_settings [done]: the settings screen
 settings_frame() { # settings_frame [done]: the settings screen's lines
   local n=1 row v line mark
   for row in $(rows); do
@@ -468,7 +477,7 @@ settings_screen() {
   fi
   count="$(set -- $(rows); echo $#)"
   quiet_keys on
-  draw_settings
+  FRAME_H=0; draw_settings
   while :; do
     read_key
     [ -n "$KEY" ] || break
@@ -616,7 +625,6 @@ for line in "${TITLE_ART[@]}"; do
 done
 STAR_TOP=1  # centred in the space right of COOL, up to README's right edge
 STAR_COL=34
-UP=$((${#TITLE[@]} + 2))             # the banner's rows above the countdown line
 
 STAR=on
 draw_banner() { # draw_banner ask|done: the title with the star beside it; with ask, what the star does
@@ -639,13 +647,17 @@ echo
 if $ASK_STAR; then
   frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
   enter_hint="$(paint 2 'Enter to continue')"
-  draw_banner ask
+  frame="$(draw_banner ask)"
+  printf '%s\n' "$frame"
+  UP="$(frame_height "$frame")" # the banner's rows above the countdown line, wrapped ones too
+  doing="setting up github-cool-readme..."
+  [ "$(stty size < /dev/tty 2>/dev/null | awk '{ print $2 }')" -ge 60 ] 2>/dev/null || doing="setting up..." # one line
   quiet_keys on
   stty -icanon min 0 time 1 < /dev/tty # a key, or nothing after a tenth of a second
   ticks=40 i=0                         # 4 seconds
   while [ "$ticks" -gt 0 ]; do
-    printf '\r  \033[36m%s\033[0m setting up github-cool-readme... %d   %s\033[K' \
-      "${frames[$((i % 10))]}" $(((ticks + 9) / 10)) "$enter_hint"
+    printf '\r  \033[36m%s\033[0m %s %d   %s\033[K' \
+      "${frames[$((i % 10))]}" "$doing" $(((ticks + 9) / 10)) "$enter_hint"
     i=$((i + 1))
     k="$(dd bs=16 count=1 2>/dev/null < /dev/tty; echo .)"
     k="${k%.}"
@@ -875,8 +887,8 @@ for card in $CARD_NAMES; do card_on "$card" || OFF="${OFF:+$OFF }$card"; done
 SEL="$(set -- $S_CARDS $OFF; echo "$1")"
 ROWS="$(set -- $CARD_NAMES; echo $#)"
 cards_hint() {
-  if [ -n "$S_CARDS" ]; then echo "↑↓ to choose, space for on/off, shift ↑↓ to move it, Enter to continue"
-  else echo "all off: cards out of your README, no schedule; space for on/off, Enter to continue"; fi
+  if [ -n "$S_CARDS" ]; then echo "↑↓ to choose, space for on/off, shift ↑↓ to move, Enter to continue"
+  else echo "all off: out of your README, no schedule; space for on/off, Enter to continue"; fi
 }
 move_sel() { # move_sel up|down: the ▸ to the row above or below
   local a i
@@ -888,7 +900,7 @@ move_sel() { # move_sel up|down: the ▸ to the row above or below
 }
 if $FANCY; then
   quiet_keys on
-  draw_cards "$(cards_hint)"
+  FRAME_H=0; paint_frame "$(draw_cards "$(cards_hint)")"
   while :; do
     read_key
     [ -n "$KEY" ] || break
@@ -904,10 +916,10 @@ if $FANCY; then
           SEL="$(set -- $S_CARDS $OFF; eval "echo \${$row}")"
         else OFF="$(without "$OFF" "$SEL")"; S_CARDS="${S_CARDS:+$S_CARDS }$SEL"; fi ;;
     esac
-    redraw $((ROWS + 1)) "$(draw_cards "$(cards_hint)")"
+    paint_frame "$(draw_cards "$(cards_hint)")"
   done
   quiet_keys off
-  redraw $((ROWS + 1)) "$(draw_cards "")" # the cards stay, the hint and the ▸ go
+  paint_frame "$(draw_cards "")" # the cards stay, the hint and the ▸ go
 elif [ -n "$S_CARDS" ]; then
   report ok "cards: $(printf '%s' "$S_CARDS" | sed 's/ /, /g')"
 else

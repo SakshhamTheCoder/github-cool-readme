@@ -8,7 +8,7 @@ export const DEFAULT_CARDS: Card[] = ['summary', 'languages', 'contributions', '
 
 export const STYLES = ['classic', 'oled', 'dotmatrix'] as const;
 export type Style = (typeof STYLES)[number];
-export const COLORS = ['github', 'amber', 'green'] as const;
+export const COLORS = ['github', 'amber', 'green', 'purple', 'cyan', 'red', 'blue'] as const;
 export type Color = (typeof COLORS)[number];
 
 export interface Config {
@@ -26,7 +26,7 @@ export interface Config {
   look: {
     /** classic: GitHub-style cards. oled: displays of square pixels. dotmatrix: of round LEDs. */
     style: Style;
-    /** github: GitHub's own blue and greens. amber, green: everything that highlights in that colour. */
+    /** github: GitHub's own blue and greens. amber, green, purple, cyan, red, blue: everything that highlights in that colour. */
     color: Color;
     animations: boolean;
     /**
@@ -269,7 +269,7 @@ export function parseConfig(text: string): Config {
     throw new ConfigError(`"look.style" must be ${STYLES.map((s) => `"${s}"`).join(', ').replace(/, ([^,]*)$/, ' or $1')}`);
   }
   if (!(COLORS as readonly string[]).includes(config.look.color)) {
-    throw new ConfigError('"look.color" must be "github", "amber" or "green"');
+    throw new ConfigError(`"look.color" must be ${COLORS.map((c) => `"${c}"`).join(', ').replace(/, ([^,]*)$/, ' or $1')}`);
   }
   for (const card of config.show) {
     if (!(CARDS as readonly string[]).includes(card)) {
