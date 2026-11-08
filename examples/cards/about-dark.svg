@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="400" height="195" viewBox="0 0 400 195" fill="none" role="img" aria-labelledby="title desc">
 <title id="title">About</title>
-<desc id="desc">Hi, I&#39;m Pedro Cloud infra, CI/CD and backend, mostly Java. Porting classic games natively, with extras. I fly airplanes and go wild camping offroad. I also race go-karts competitively. Based in: Santarém Currently: Diving into emulators</desc>
+<desc id="desc">Hi, I&#39;m Pedro I&#39;m a software architect with 20+ years of experience. Cloud infra, CI/CD and backend, mostly Java. Porting classic games natively, with extras. I fly airplanes and go wild camping offroad. I also race go-karts competitively. Based in: Santarém Currently: Diving into emulators</desc>
 <style>
   text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif; fill: #f0f6fc; }
   .label { font-size: 14px; }
@@ -18,10 +18,10 @@
   @keyframes grow { from { transform: scaleX(0); } }
   @keyframes pop { from { opacity: 0; transform: scale(0.6); } }
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
-  .scroll { animation: scroll 8.4s ease-in-out infinite; }
-  @keyframes scroll { 0%, 35.71% { transform: translateY(0); } 54.76% { transform: translateY(-22px); } 90.48% { opacity: 1; } 100% { opacity: 0; transform: translateY(-22px); } }
-  .again { opacity: 0; animation: again 8.4s ease-in-out infinite; }
-  @keyframes again { 0%, 90.48% { opacity: 0; } 100% { opacity: 1; } }
+  .scroll { animation: scroll 10s ease-in-out infinite; }
+  @keyframes scroll { 0%, 30% { transform: translateY(0); } 62% { transform: translateY(-44px); } 92% { opacity: 1; } 100% { opacity: 0; transform: translateY(-44px); } }
+  .again { opacity: 0; animation: again 10s ease-in-out infinite; }
+  @keyframes again { 0%, 92% { opacity: 0; } 100% { opacity: 1; } }
   .fact { opacity: 0; animation: fact 8.6s linear infinite backwards; }
   @keyframes fact { 0% { opacity: 0; } 4.65%, 45.35% { opacity: 1; } 50%, 100% { opacity: 0; } }
 </style>
@@ -29,14 +29,15 @@
 <text x="20" y="28" class="col">ABOUT</text>
 <g transform="translate(20 66)"><g class="fade" style="animation-delay: 200ms"><text style="font-size: 22px; font-weight: 700;">Hi, I&#39;m <tspan fill="#4493f8">Pedro</tspan></text></g></g>
 <clipPath id="about"><rect x="0" y="78" width="400" height="66"/></clipPath><g clip-path="url(#about)"><g class="scroll">
-<g transform="translate(20 94)"><g class="fade" style="animation-delay: 290ms"><text class="label secondary">Cloud infra, CI/CD and backend, mostly <tspan fill="#4493f8">Java</tspan>.</text></g></g>
-<g transform="translate(20 116)"><g class="fade" style="animation-delay: 380ms"><text class="label secondary">Porting classic games natively, with extras.</text></g></g>
-<g transform="translate(20 138)"><g class="fade" style="animation-delay: 470ms"><text class="label secondary">I fly airplanes and go wild camping offroad.</text></g></g>
-<g transform="translate(20 160)"><g class="fade" style="animation-delay: 560ms"><text class="label secondary">I also race go-karts competitively.</text></g></g>
+<g transform="translate(20 94)"><g class="fade" style="animation-delay: 290ms"><text class="label secondary">I&#39;m a software architect with 20+ years of experience.</text></g></g>
+<g transform="translate(20 116)"><g class="fade" style="animation-delay: 380ms"><text class="label secondary">Cloud infra, CI/CD and backend, mostly <tspan fill="#4493f8">Java</tspan>.</text></g></g>
+<g transform="translate(20 138)"><g class="fade" style="animation-delay: 470ms"><text class="label secondary">Porting classic games natively, with extras.</text></g></g>
+<g transform="translate(20 160)"><g class="fade" style="animation-delay: 560ms"><text class="label secondary">I fly airplanes and go wild camping offroad.</text></g></g>
+<g transform="translate(20 182)"><g class="fade" style="animation-delay: 560ms"><text class="label secondary">I also race go-karts competitively.</text></g></g>
 </g><g class="again">
-<g transform="translate(20 94)"><text class="label secondary">Cloud infra, CI/CD and backend, mostly <tspan fill="#4493f8">Java</tspan>.</text></g>
-<g transform="translate(20 116)"><text class="label secondary">Porting classic games natively, with extras.</text></g>
-<g transform="translate(20 138)"><text class="label secondary">I fly airplanes and go wild camping offroad.</text></g>
+<g transform="translate(20 94)"><text class="label secondary">I&#39;m a software architect with 20+ years of experience.</text></g>
+<g transform="translate(20 116)"><text class="label secondary">Cloud infra, CI/CD and backend, mostly <tspan fill="#4493f8">Java</tspan>.</text></g>
+<g transform="translate(20 138)"><text class="label secondary">Porting classic games natively, with extras.</text></g>
 </g></g>
 <g class="fact" style="animation-delay: 0.00s"><g transform="translate(20 160)"><g class="fade" style="animation-delay: 560ms"><text class="col">BASED IN</text><text x="81" class="label">Santarém</text></g></g></g>
 <g class="fact" style="animation-delay: 4.30s"><g transform="translate(20 160)"><g class="fade" style="animation-delay: 560ms"><text class="col">CURRENTLY</text><text x="81" class="label">Diving into emulators</text></g></g></g>

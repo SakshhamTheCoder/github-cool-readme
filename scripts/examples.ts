@@ -18,6 +18,7 @@ delete base.cards.summary;
 const about = (style: string) => ({
   headline: "Hi, I'm *Pedro*",
   lines: [
+    "I'm a software architect with 20+ years of experience.",
     'Cloud infra, CI/CD and backend, mostly *Java*.',
     'Porting classic games natively, with extras.',
     'I fly airplanes and go wild camping offroad.',
