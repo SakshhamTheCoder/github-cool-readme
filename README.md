@@ -88,14 +88,6 @@ look:
 <img src="examples/dotmatrix-cards/summary.svg" width="400" alt="GitHub stats">
 <img src="examples/dotmatrix-cards/languages.svg" width="400" alt="Most used languages">
 </p>
-<p align="center">
-<img src="examples/dotmatrix-cards/contributions.svg" width="400" alt="Notable contributions">
-<img src="examples/dotmatrix-cards/weekly.svg" width="400" alt="Weekly rhythm">
-</p>
-<p align="center">
-<img src="examples/dotmatrix-cards/streaks.svg" width="400" alt="Streaks">
-<img src="examples/dotmatrix-cards/about.svg" width="400" alt="About">
-</p>
 
 **GitHub**: GitHub's own text and blue, on a transparent background, following the viewer's light or dark theme.
 
@@ -106,12 +98,12 @@ look:
 
 <p align="center">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="examples/dotmatrix-cards/github/summary-dark.svg">
-  <img src="examples/dotmatrix-cards/github/summary-light.svg" width="400" alt="GitHub summary">
+  <source media="(prefers-color-scheme: dark)" srcset="examples/dotmatrix-cards/github/contributions-dark.svg">
+  <img src="examples/dotmatrix-cards/github/contributions-light.svg" width="400" alt="GitHub contributions">
 </picture>
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="examples/dotmatrix-cards/github/languages-dark.svg">
-  <img src="examples/dotmatrix-cards/github/languages-light.svg" width="400" alt="GitHub languages">
+  <source media="(prefers-color-scheme: dark)" srcset="examples/dotmatrix-cards/github/weekly-dark.svg">
+  <img src="examples/dotmatrix-cards/github/weekly-light.svg" width="400" alt="GitHub weekly">
 </picture>
 </p>
 
@@ -125,12 +117,12 @@ look:
 
 <p align="center">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="examples/dotmatrix-cards/green/summary-dark.svg">
-  <img src="examples/dotmatrix-cards/green/summary-light.svg" width="400" alt="Green summary">
+  <source media="(prefers-color-scheme: dark)" srcset="examples/dotmatrix-cards/green/streaks-dark.svg">
+  <img src="examples/dotmatrix-cards/green/streaks-light.svg" width="400" alt="Green streaks">
 </picture>
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="examples/dotmatrix-cards/green/languages-dark.svg">
-  <img src="examples/dotmatrix-cards/green/languages-light.svg" width="400" alt="Green languages">
+  <source media="(prefers-color-scheme: dark)" srcset="examples/dotmatrix-cards/green/about-dark.svg">
+  <img src="examples/dotmatrix-cards/green/about-light.svg" width="400" alt="Green about">
 </picture>
 </p>
 

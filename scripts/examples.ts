@@ -31,9 +31,9 @@ const about = (style: string) => ({
 const looks: { dir: string; look: Record<string, string>; cards: readonly Card[]; panel?: boolean }[] = [
   { dir: 'cards', look: { style: 'classic' }, cards: ['about', 'languages', 'summary', 'contributions'] },
   { dir: 'cards/amber', look: { style: 'classic', color: 'amber' }, cards: ['weekly', 'streaks'] },
-  { dir: 'dotmatrix-cards', look: { style: 'dotmatrix', color: 'amber', background: '0d0b07' }, cards: CARDS, panel: true },
-  { dir: 'dotmatrix-cards/github', look: { style: 'dotmatrix' }, cards: ['summary', 'languages'] },
-  { dir: 'dotmatrix-cards/green', look: { style: 'dotmatrix', color: 'green' }, cards: ['summary', 'languages'] },
+  { dir: 'dotmatrix-cards', look: { style: 'dotmatrix', color: 'amber', background: '0d0b07' }, cards: ['summary', 'languages'], panel: true },
+  { dir: 'dotmatrix-cards/github', look: { style: 'dotmatrix' }, cards: ['contributions', 'weekly'] },
+  { dir: 'dotmatrix-cards/green', look: { style: 'dotmatrix', color: 'green' }, cards: ['streaks', 'about'] },
   { dir: 'oled-cards', look: { style: 'oled', color: 'amber', background: '0d0b07' }, cards: ['summary', 'languages'], panel: true },
 ];
 
