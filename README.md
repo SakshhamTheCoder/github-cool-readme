@@ -26,17 +26,17 @@ For details see [Setup](#setup).
 GitHub's own look: its fonts, colours and icons on a transparent background, following the viewer's light or dark theme. The default.
 
 ```yaml
-show: [summary, languages, contributions, weekly, streaks, about]
+show: [about, languages, summary, contributions]
 look:
   style: classic
 ```
 
-The summary's ring is your share of active days; `ring: github` under `cards: summary:` puts the GitHub logo there instead. With `color: amber`, `green`, `purple`, `cyan`, `red` or `blue` under `look`, the ring, the weekly bars, the streaks highlight and the about card's marked words take that colour.
+The summary's ring is your share of active days; `ring: github` under `cards: summary:` puts the GitHub logo there instead.
 
 <p align="center">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="examples/cards/summary-dark.svg">
-  <img src="examples/cards/summary-light.svg" width="400" alt="GitHub stats">
+  <source media="(prefers-color-scheme: dark)" srcset="examples/cards/about-dark.svg">
+  <img src="examples/cards/about-light.svg" width="400" alt="About">
 </picture>
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="examples/cards/languages-dark.svg">
@@ -45,22 +45,32 @@ The summary's ring is your share of active days; `ring: github` under `cards: su
 </p>
 <p align="center">
 <picture>
+  <source media="(prefers-color-scheme: dark)" srcset="examples/cards/summary-dark.svg">
+  <img src="examples/cards/summary-light.svg" width="400" alt="GitHub stats">
+</picture>
+<picture>
   <source media="(prefers-color-scheme: dark)" srcset="examples/cards/contributions-dark.svg">
   <img src="examples/cards/contributions-light.svg" width="400" alt="Notable contributions">
 </picture>
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="examples/cards/weekly-dark.svg">
-  <img src="examples/cards/weekly-light.svg" width="400" alt="Weekly rhythm">
-</picture>
 </p>
+
+With `color: amber`, `green`, `purple`, `cyan`, `red` or `blue`, the weekly bars, the streaks highlight, the summary's ring and the about card's marked words take that colour.
+
+```yaml
+show: [streaks, weekly]
+look:
+  style: classic
+  color: amber
+```
+
 <p align="center">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="examples/cards/streaks-dark.svg">
-  <img src="examples/cards/streaks-light.svg" width="400" alt="Streaks">
+  <source media="(prefers-color-scheme: dark)" srcset="examples/cards/amber/streaks-dark.svg">
+  <img src="examples/cards/amber/streaks-light.svg" width="400" alt="Streaks">
 </picture>
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="examples/cards/about-dark.svg">
-  <img src="examples/cards/about-light.svg" width="400" alt="About">
+  <source media="(prefers-color-scheme: dark)" srcset="examples/cards/amber/weekly-dark.svg">
+  <img src="examples/cards/amber/weekly-light.svg" width="400" alt="Weekly rhythm">
 </picture>
 </p>
 

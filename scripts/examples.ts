@@ -29,7 +29,8 @@ const about = (style: string) => ({
 
 /** Where each look goes, and which of its cards: a folder with light and dark files, or one file each when on a panel. */
 const looks: { dir: string; look: Record<string, string>; cards: readonly Card[]; panel?: boolean }[] = [
-  { dir: 'cards', look: { style: 'classic' }, cards: CARDS },
+  { dir: 'cards', look: { style: 'classic' }, cards: ['about', 'languages', 'summary', 'contributions'] },
+  { dir: 'cards/amber', look: { style: 'classic', color: 'amber' }, cards: ['weekly', 'streaks'] },
   { dir: 'dotmatrix-cards', look: { style: 'dotmatrix', color: 'amber', background: '0d0b07' }, cards: CARDS, panel: true },
   { dir: 'dotmatrix-cards/github', look: { style: 'dotmatrix' }, cards: ['summary', 'languages'] },
   { dir: 'dotmatrix-cards/green', look: { style: 'dotmatrix', color: 'green' }, cards: ['summary', 'languages'] },
