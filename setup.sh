@@ -1063,7 +1063,7 @@ fi
 # Prepared here, before the commit, so every question is answered before the long wait for the
 # first run. Until the cards exist the README would show broken images, so on a new setup the
 # README is committed by itself once the first run has made them.
-section "README"
+section "Update"
 # The workflow publishes the cards on their own branch; one kept from before commits them to stats/.
 ON_BRANCH=false
 grep -q "origin $BRANCH" "$WORKFLOW" && ON_BRANCH=true
@@ -1213,7 +1213,7 @@ commit_and_push "$msg" || true
 
 # ------------------------------------------------------------------ first run
 
-$CARDS_OFF || section "First run" # with the cards off there is nothing to run
+if ! $CARDS_OFF; then if $NEW_SETUP; then section "First run"; else section "Run"; fi; fi # with the cards off there is nothing to run
 wait_with_timer() { # wait_with_timer pid label: a spinner and the time taken, until pid ends; its exit status
   local pid="$1" start="$SECONDS" i=0 s
   local frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
